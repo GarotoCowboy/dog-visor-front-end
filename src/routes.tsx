@@ -10,6 +10,7 @@ import { useContext } from 'react';
 import { EUserRoles } from './types/userRoles';
 import { CreateDogsScreen } from './screens/shared/CreateDogScreen';
 import { SCREENS } from './consts/screens';
+import { DogsScreen } from './screens/shared/DogsScreen';
 
 
 
@@ -43,7 +44,7 @@ if (isLoading){
     }}
     screenLayout={({children}) => (
       
-      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+      <SafeAreaView style={{ flex: 1 }} edges={[ "left", "right"]}>
           {children}
         </SafeAreaView>
     )}
@@ -57,11 +58,19 @@ if (isLoading){
     ) : (
       //Rotas comuns
       <>
-        <Stack.Screen name={SCREENS.DOG_SCREEN} component={VeterinarianHomeScreen}/>
+        <Stack.Screen name={SCREENS.DOG_SCREEN} component={DogsScreen}
+        options={{
+          headerShown: true,
+          headerTitle:"Cães",
+          headerBackVisible:false
+
+        }}
+        />
         <Stack.Screen
           options={{
             headerShown: true,
-            headerTitle:"Cadastrar Novo Cão"
+            headerTitle:"Cadastrar Novo Cão",
+            headerBackVisible:false
           }}
         name={SCREENS.CREATE_DOG_SCREEN} component={CreateDogsScreen}/>
 
