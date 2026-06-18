@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
+import { theme } from '../../../theme/theme';
 
 // 1. Interface das Props (mantida e tipada)
 interface ICheckBoxProps {
-  value: boolean;                         // Estado atual (controlado pelo pai)
-  onChangeChecked: (checked: boolean) => void; // Função para alternar o estado
-  label?: string;                         // Texto opcional ao lado
+  value: boolean;                         
+  onChangeChecked: (checked: boolean) => void; 
+  label?: string;                         
 }
 
-// Constantes de design para facilitar ajustes futuros
-const CHECKBOX_SIZE = 24;
-const INNER_DOT_SIZE = CHECKBOX_SIZE * 0.6; // O ponto interno ocupa 60% do tamanho total
+const CHECKBOX_SIZE = 14;
+const INNER_DOT_SIZE = CHECKBOX_SIZE * 0.6;
 
 export const CheckBox = ({ value, onChangeChecked, label }: ICheckBoxProps) => {
   return (
@@ -50,24 +50,25 @@ const styles = StyleSheet.create({
     width: CHECKBOX_SIZE,
     height: CHECKBOX_SIZE,
     borderWidth: 2,
-    borderColor: '#757575', // Cor da borda padrão
+    borderColor: theme.colors.primary, // Cor da borda padrão
     borderRadius: 999,      // Garante que seja um círculo perfeito
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
   outerCircleChecked: {
-    borderColor: '#2196F3', // Cor da borda quando selecionado (pode ser a mesma da bolinha interna)
+    borderColor: theme.colors.secondary, // Cor da borda quando selecionado (pode ser a mesma da bolinha interna)
   },
   innerDot: {
     width: INNER_DOT_SIZE,
     height: INNER_DOT_SIZE,
     borderRadius: 999,      // Garante que seja um círculo perfeito
-    backgroundColor: '#2196F3', // Cor da bolinha azul interna
+    backgroundColor: theme.colors.secondary, // Cor da bolinha azul interna
   },
   label: {
     marginLeft: 10,
-    fontSize: 16,
-    color: '#333333',
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.text,
+    fontFamily: theme.typography.fontFamily.medium,
   },
 });
