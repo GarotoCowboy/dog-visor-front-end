@@ -26,6 +26,7 @@ export const Button = ({
         ...(pressed ? styles.buttonPressed : {}),
         ...(variant === "primary" ? styles.primary : {}),
         ...(variant === "outline" ? styles.outlined : {}),
+        ...(variant === "outline" && pressed ? styles.outlinedPressed : {}),
         ...(variant === "transparent" ? styles.transparent : {}),
         ...(variant === "warning" ? styles.warning : {}),
         ...(variant === "FAB" ? styles.fab : {}),
@@ -85,7 +86,10 @@ const styles = StyleSheet.create({
     ...theme.shadows.md,
   },
   buttonPressed: {
-    opacity: 0.9,
+    opacity:0.8
+  },
+  outlinedPressed:{
+    backgroundColor:"rgba(0,0,0,0.1)"
   },
   buttonText: {
     fontFamily: theme.typography.fontFamily.medium,

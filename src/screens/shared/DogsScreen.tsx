@@ -5,15 +5,14 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  TouchableOpacity,
 } from "react-native";
 import {
   useNavigation,
-  NavigationProp,
   useFocusEffect,
 } from "@react-navigation/native";
 import { Button } from "../../shared/components/ButtonComponent";
 import { RootStackParamList } from "../../routes";
-import { SCREENS } from "../../consts/screens";
 import {
   DogRaceLabel,
   DogStatusLabel,
@@ -29,6 +28,8 @@ import { calculateAge } from "../../utils/calculateAge";
 import FormComponent from "../../shared/components/FormComponent";
 import FontAwesomeFreeSolid from "@react-native-vector-icons/fontawesome-free-solid";
 import { CustomAlertComponent } from "../../shared/components/CustomAlertComponent";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import {SCREENS} from "../../consts/screens"
 
 type AlertVariant = "warning" | "error" | "success";
 
@@ -39,16 +40,22 @@ type AlertData = {
   message: string;
 };
 
+type DogsScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  typeof SCREENS.DOG_SCREEN
+>;
+
 const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
   (acc, item) => {
     acc[item.key] = item.image;
     return acc;
   },
-  {} as Record<string, any>
+  {} as Record<string, any>,
 );
 
+
 export const DogsScreen = () => {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<DogsScreenNavigationProp>();
 
   const [dogs, setDogs] = useState<IDogResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,11 +68,7 @@ export const DogsScreen = () => {
     message: "",
   });
 
-  const showAlert = (
-    variant: AlertVariant,
-    title: string,
-    message: string
-  ) => {
+  const showAlert = (variant: AlertVariant, title: string, message: string) => {
     setAlertData({
       visible: true,
       variant,
@@ -94,7 +97,7 @@ export const DogsScreen = () => {
       showAlert(
         "error",
         "Erro ao buscar cães",
-        "Não foi possível carregar a lista de cães. Tente novamente."
+        "Não foi possível carregar a lista de cães. Tente novamente.",
       );
     } finally {
       setLoading(false);
@@ -104,11 +107,11 @@ export const DogsScreen = () => {
   useFocusEffect(
     useCallback(() => {
       loadingDogs();
-    }, [])
+    }, []),
   );
 
   const handleToCreateDogScreen = () => {
-    navigation.navigate(SCREENS.CREATE_DOG_SCREEN);
+    navigation.navigate(SCREENS.CREATE_DOG_SCREEN)
   };
 
   const filteredDogs = dogs.filter((item) => {
@@ -153,76 +156,78 @@ export const DogsScreen = () => {
             keyExtractor={(item) => item.ID.toString()}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
-                  Nenhum cão encontrado.
-                </Text>
+                <Text style={styles.emptyText}>Nenhum cão encontrado.</Text>
               </View>
             }
             renderItem={({ item }) => {
               const imageSource = avatarMap[item.avatarKey];
 
               return (
-                <View style={styles.cardContainer}>
-                  <Card>
-                    <View style={styles.rowContainer}>
-                      <View style={styles.leftColumn}>
-                        {imageSource ? (
-                          <Image
-                            source={imageSource}
-                            style={styles.avatarImage}
-                          />
-                        ) : (
-                          <View
-                            style={[
-                              styles.avatarImage,
-                              styles.placeholderImage,
-                            ]}
-                          />
-                        )}
-                      </View>
+                <TouchableOpacity onPress={() => navigation.navigate(SCREENS.DOG_DETAILS_SCREEN,{
+                  dog: item
+                })}>
+                  <View style={styles.cardContainer}>
+                    <Card>
+                      <View style={styles.rowContainer}>
+                        <View style={styles.leftColumn}>
+                          {imageSource ? (
+                            <Image
+                              source={imageSource}
+                              style={styles.avatarImage}
+                            />
+                          ) : (
+                            <View
+                              style={[
+                                styles.avatarImage,
+                                styles.placeholderImage,
+                              ]}
+                            />
+                          )}
+                        </View>
 
-                      <View style={styles.rightColumn}>
-                        <View style={styles.nameAndStatusRow}>
-                          <Text style={styles.dogNameText} numberOfLines={2}>
-                            {item.name}
+                        <View style={styles.rightColumn}>
+                          <View style={styles.nameAndStatusRow}>
+                            <Text style={styles.dogNameText} numberOfLines={2}>
+                              {item.name}
+                            </Text>
+
+                            <View
+                              style={{
+                                ...styles.dogStatusContainer,
+                                ...(item.status === EDOG_STATUS.CEDIDO ||
+                                item.status === EDOG_STATUS.DOACAO
+                                  ? styles.dogStatusContainerAlert
+                                  : {}),
+                              }}
+                            >
+                              <Text style={styles.dogStatusText}>
+                                {item.status
+                                  ? DogStatusLabel[item.status]
+                                  : "Não informado"}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <Text style={styles.dogDetailsText}>
+                            {item.race
+                              ? DogRaceLabel[item.race]
+                              : "Não informado"}
                           </Text>
 
-                          <View
-                            style={{
-                              ...styles.dogStatusContainer,
-                              ...(item.status === EDOG_STATUS.CEDIDO ||
-                              item.status === EDOG_STATUS.DOACAO
-                                ? styles.dogStatusContainerAlert
-                                : {}),
-                            }}
-                          >
-                            <Text style={styles.dogStatusText}>
-                              {item.status
-                                ? DogStatusLabel[item.status]
-                                : "Não informado"}
+                          <View style={{ ...styles.rowContainer, gap: 12 }}>
+                            <Text style={styles.dogDetailsText}>
+                              {calculateAge(new Date(item.dateOfBirth))}
+                            </Text>
+
+                            <Text style={styles.dogDetailsText}>
+                              {item.sex === "M" ? "Macho" : "Fêmea"}
                             </Text>
                           </View>
                         </View>
-
-                        <Text style={styles.dogDetailsText}>
-                          {item.race
-                            ? DogRaceLabel[item.race]
-                            : "Não informado"}
-                        </Text>
-
-                        <View style={{ ...styles.rowContainer, gap: 12 }}>
-                          <Text style={styles.dogDetailsText}>
-                            {calculateAge(new Date(item.dateOfBirth))}
-                          </Text>
-
-                          <Text style={styles.dogDetailsText}>
-                            {item.sex === "M" ? "Macho" : "Fêmea"}
-                          </Text>
-                        </View>
                       </View>
-                    </View>
-                  </Card>
-                </View>
+                    </Card>
+                  </View>
+                </TouchableOpacity>
               );
             }}
           />

@@ -7,9 +7,9 @@ export const colors = {
   alertLightColor: "#fee2e2",
   warningLightColor: "#fef3c7",
   background: "#f4f4f4",
-  white: "#ffffff",
+  white: "#FFFFFF",
   border: "#E5E7EB",
-
+ 
   // Status
   statusPending: "#356c69",
   statusUrgent: "#e57373",

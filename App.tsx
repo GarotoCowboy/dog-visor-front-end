@@ -5,7 +5,7 @@ import { AuthProvider } from "./src/service/authContext";
 export default function App() {
   return (
     <AuthProvider>
-      <NavigationContainer>
+      <NavigationContainer> 
         <MyStack />
       </NavigationContainer>
     </AuthProvider>
