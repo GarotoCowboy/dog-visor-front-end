@@ -1,3 +1,4 @@
+const address = process.env.EXPO_PUBLIC_BACKEND_ADDRESS;
+const port = process.env.EXPO_PUBLIC_BACKEND_PORT;
 
-export const ADDRESS = "http://192.168.1.254:3003"
-
+export const ADDRESS = `http://${address}:${port}`
