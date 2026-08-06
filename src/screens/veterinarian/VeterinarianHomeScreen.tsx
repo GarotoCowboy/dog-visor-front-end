@@ -6,7 +6,7 @@ import { Card } from '../../shared/components/CardComponent'
 import { Button } from '../../shared/components/ButtonComponent'
 import {NavigationProp, useNavigation} from '@react-navigation/native'
 import { SCREENS } from '../../consts/screens'
-import { MyTabs, RootStackParamList } from '../../routes'
+import { VeterinarianTabs, RootStackParamList } from '../../routes'
 
 
 
