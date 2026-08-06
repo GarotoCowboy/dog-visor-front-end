@@ -10,6 +10,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package":"com.dogvisor.front.end",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
