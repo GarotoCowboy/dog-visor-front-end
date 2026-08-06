@@ -127,3 +127,8 @@ export const getDogRation = async () => {
   const response = await api.get("api/v1/dogfeeding/rations");
   return response.data;
 };
+
+export const deleteDogRation = async (id: string) => {
+  const response = await api.delete(`api/v1/dogfeeding/rations/${id}`)
+  return response.data;
+}

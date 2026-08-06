@@ -21,6 +21,10 @@ type CustomAlertProps = {
   message: string;
   onClose: () => void;
   variant: AlertVariant;
+  // ➕ Novas props opcionais para confirmação
+  onConfirm?: () => void;
+  confirmText?: string;
+  cancelText?: string;
 };
 
 const variantConfig = {
@@ -47,6 +51,9 @@ export const CustomAlertComponent = ({
   message,
   onClose,
   variant,
+  onConfirm,
+  confirmText = "Confirmar",
+  cancelText = "Cancelar",
 }: CustomAlertProps) => {
   const config = variantConfig[variant];
 
@@ -70,13 +77,34 @@ export const CustomAlertComponent = ({
 
           <Text style={styles.message}>{message}</Text>
 
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: config.color }]}
-            onPress={onClose}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>Ok</Text>
-          </TouchableOpacity>
+          {/* ➕ Se passou onConfirm, renderiza 2 botões; senão, mantém apenas o Ok */}
+          {onConfirm ? (
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelButtonText}>{cancelText}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: config.color }]}
+                onPress={onConfirm}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.buttonText}>{confirmText}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: config.color }]}
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.buttonText}>Ok</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </Modal>
@@ -114,10 +142,26 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: "#333",
   },
+  // ➕ Estilos para botões duplos
+  actionsContainer: {
+    flexDirection: "row",
+    gap: 12,
+  },
   button: {
     paddingVertical: 10,
-    paddingHorizontal: 32,
+    paddingHorizontal: 20,
     borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#666",
+  },
+  cancelButtonText: {
+    color: "#333",
+    fontWeight: "bold",
   },
   buttonText: {
     color: "#fff",
