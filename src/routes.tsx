@@ -27,6 +27,8 @@ import FontAwesomeFreeSolid from "@react-native-vector-icons/fontawesome-free-so
 import { CoordinatorHomeScreen } from "./screens/coordinator/CoordinatorHomeScreen";
 import { CreateRationsScreen } from "./screens/coordinator/CreateRationsScreen";
 import { RationScreen } from "./screens/coordinator/RationScreen";
+import { IRationResponse } from "./types/Ration";
+import { RationDetailsScreen } from "./screens/coordinator/RationDetailsScreen";
 
 export type RootStackParamList = {
   //Tab navigator
@@ -44,8 +46,9 @@ export type RootStackParamList = {
 
   [SCREENS.COORDINATOR_HOME] : undefined;
   [SCREENS.CREATE_RATIONS_SCREEN] : undefined;
-  [SCREENS.RATIONS_SCREEN]: undefined
-};
+  [SCREENS.RATIONS_SCREEN]: undefined;
+  [SCREENS.RATION_DETAILS_SCREEN]: {ration: IRationResponse}
+}
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
@@ -216,6 +219,15 @@ export const MyStack = () => {
                 }}
                 name={SCREENS.CREATE_RATIONS_SCREEN}
                component={CreateRationsScreen}
+              />
+              <Stack.Screen
+                options={{
+                  headerShown: true,
+                  headerTitle: "Detalhes da Ração",
+                  headerBackVisible: false,
+                }}
+                name={SCREENS.RATION_DETAILS_SCREEN}
+               component={RationDetailsScreen}
               />
             </>
           )}

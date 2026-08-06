@@ -10,5 +10,6 @@ export const SCREENS = {
 
   COORDINATOR_HOME: "CoordinatorHome",
   CREATE_RATIONS_SCREEN: "CreateRationScreen",
-  RATIONS_SCREEN: "RationsScreen"
+  RATIONS_SCREEN: "RationsScreen",
+  RATION_DETAILS_SCREEN: "RationDetailsScreen"
 } as const;
