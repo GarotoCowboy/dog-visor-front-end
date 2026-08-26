@@ -11,13 +11,17 @@ import { RootStackParamList } from "../../routes";
 import { SCREENS } from "../../consts/screens";
 import { useCallback, useState } from "react";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { ERATION_STATUS, EStockStatus, IRationResponse, RationTypeLabel } from "../../types/Ration";
+import {
+  ERATION_STATUS,
+  IRationResponse,
+} from "../../types/Ration";
 import { deleteDogRation, getDogRation } from "../../service/api";
 import { theme } from "../../../theme/theme";
 import { Card } from "../../shared/components/CardComponent";
 import { FontAwesomeFreeSolid } from "@react-native-vector-icons/fontawesome-free-solid";
 import { Button } from "../../shared/components/ButtonComponent";
 import { CustomAlertComponent } from "../../shared/components/CustomAlertComponent";
+import { EditRationFormComponent } from "./components/EditRationFormComponent";
 
 type AlertVariant = "warning" | "error" | "success";
 
@@ -38,9 +42,11 @@ export const RationScreen = () => {
 
   const [rations, setRations] = useState<IRationResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [openIncreaseRationForm, setOpenIncreaseRationForm] = useState(false);
+  const [openDecreaseRationForm, setOpenDecreaseRationForm] = useState(false);
 
-  // ➕ Guardará o ID do item que está prestes a ser excluído
   const [rationToDeleteId, setRationToDeleteId] = useState<string | null>(null);
+  const [rationToUpdateId, setRationToUpdateId] = useState<string | null>(null);
 
   const [alertData, setAlertData] = useState<AlertData>({
     visible: false,
@@ -63,8 +69,6 @@ export const RationScreen = () => {
       ...prev,
       visible: false,
     }));
-    // Limpa a seleção caso o alerta feche
-    setRationToDeleteId(null);
   };
 
   const loadingRations = async () => {
@@ -84,35 +88,36 @@ export const RationScreen = () => {
     }
   };
 
-  // 1️⃣ Chamado no clique da lixeira: Abre o alerta de aviso
   const confirmDeleteRation = (id: string) => {
     setRationToDeleteId(id);
     showAlert(
       "warning",
       "Confirmar exclusão",
-      "Tem certeza que deseja deletar esta ração?"
+      "Tem certeza que deseja deletar esta ração?",
     );
   };
 
-  // 2️⃣ Chamado quando o usuário clica em "Confirmar" no Alerta
   const handleDeleteRation = async () => {
     if (!rationToDeleteId) return;
 
     const id = rationToDeleteId;
-    closeAlert(); // Fecha o modal de confirmação
+    closeAlert();
+    setRationToDeleteId(null);
 
     try {
       setLoading(true);
       await deleteDogRation(id);
 
-      setRations((prev) => prev.filter((item) => String(item.id) !== String(id)));
+      setRations((prev) =>
+        prev.filter((item) => String(item.id) !== String(id)),
+      );
       showAlert("success", "Sucesso", "Ração deletada com sucesso.");
     } catch (error) {
       console.error("Erro ao deletar ração", error);
       showAlert(
         "error",
         "Erro ao deletar ração",
-        "Não foi possível remover a ração. Tente novamente."
+        "Não foi possível remover a ração. Tente novamente.",
       );
     } finally {
       setLoading(false);
@@ -126,18 +131,34 @@ export const RationScreen = () => {
   );
 
   const rationPercent = (totalValue: number, currentValue: number) => {
-    if (totalValue === 0) return 0;
+    if (!totalValue || totalValue === 0) return 0;
     const percent = (currentValue / totalValue) * 100;
-    return Math.min(percent, 100);
+    return Math.min(Math.max(percent, 0), 100);
+  };
+
+  const getStatusStyle = (percent: number) => {
+    if (percent > 60) return styles.currentRationNormalView;
+    if (percent < 25) return styles.currentRationLowView;
+    return styles.currentRationWarningView;
   };
 
   const handleToCreateRationScreen = () => {
     navigation.navigate(SCREENS.CREATE_RATIONS_SCREEN);
   };
 
+  const handleIncreaseRation = (id: string) => {
+    setRationToUpdateId(id);
+    setOpenIncreaseRationForm(true);
+  };
+
+  const handleDecreaseRation = (id: string) => {
+    setRationToUpdateId(id);
+    setOpenDecreaseRationForm(true);
+  };
+
   return (
     <View style={styles.container}>
-      {loading === true ? (
+      {loading ? (
         <View style={styles.activityIndicatorContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
         </View>
@@ -145,7 +166,7 @@ export const RationScreen = () => {
         <View style={styles.flatListContainer}>
           <FlatList
             data={rations}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.flatListContent}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
@@ -153,22 +174,30 @@ export const RationScreen = () => {
               </View>
             }
             renderItem={({ item }) => {
+              const percent = rationPercent(
+                item.totalRationQuantity,
+                item.currentRationQuantity
+              );
+
               return (
-                <TouchableOpacity onPress={() =>
-                  navigation.navigate(SCREENS.RATION_DETAILS_SCREEN,{ration:item})
-                }>
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate(SCREENS.RATION_DETAILS_SCREEN, {
+                      ration: item,
+                    })
+                  }
+                >
                   <View style={styles.cardContainer}>
                     <Card>
                       <View style={styles.rowContainer}>
                         <View style={styles.leftColumn}>
-                          <View style={{backgroundColor:theme.colors.accent,borderRadius:20,height:50,width:50,alignItems:"center",justifyContent:"center"}}>
+                          <View style={styles.iconWrapper}>
                             <FontAwesomeFreeSolid
-                            name="box-open"
-                            size={theme.typography.fontSize.xl}
-                            color={theme.colors.primary}
-                          />
+                              name="box-open"
+                              size={theme.typography.fontSize.xl}
+                              color={theme.colors.primary}
+                            />
                           </View>
-                          
                         </View>
                         <View style={styles.infoContainer}>
                           <View style={styles.cardHeader}>
@@ -179,64 +208,62 @@ export const RationScreen = () => {
                             {item.rationType === ERATION_STATUS.NORMAL
                               ? "Normal"
                               : item.rationType === ERATION_STATUS.SPECIAL
-                              ? "Especial"
-                              : "Filhote"}
+                                ? "Especial"
+                                : "Filhote"}
                           </Text>
 
-                                                    <Text style={styles.paragraph}>
-                            Estoque: {item.currentRationQuantity} <Text>Kg</Text>
+                          <Text style={styles.paragraph}>
+                            Estoque: {item.currentRationQuantity} Kg
                           </Text>
 
                           <View
                             style={[
-                              rationPercent(item.totalRationQuantity, item.currentRationQuantity) > 60
-                                ? styles.currentRationNormalView
-                                : rationPercent(item.totalRationQuantity, item.currentRationQuantity) < 25
-                                ? styles.currentRationWarningView
-                                : styles.currentRationLowView,
-                              {
-                                width: `${rationPercent(
-                                  item.totalRationQuantity,
-                                  item.currentRationQuantity
-                                )}%`,
-                              },
-                              { ...styles.statusBar },
+                              styles.statusBar,
+                              getStatusStyle(percent),
+                              { width: `${percent}%` },
                             ]}
-                          ></View>
+                          />
                         </View>
                       </View>
 
-                      <View style={[
-                        styles.rowContainer,
-                        {alignSelf:"flex-end"},
-                        {gap:"10"},
-                        {paddingVertical:8},
-                  
-                      ]}>
-                        <View style={{ width: 38, height: 38 }}>
-                          <Button onPress={() => console.log("editar")} variant="primary">
-                            <View style={{}}>
-                              <FontAwesomeFreeSolid
-                                name="pen"
-                                size={8}
-                                color={theme.colors.accent}
-                              />
-                            </View>
-                          </Button>
-                        </View>
+                      <View
+                        style={[
+                          styles.rowContainer,
+                          styles.actionButtonsContainer,
+                        ]}
+                      >
+                        <Button
+                          onPress={() => handleIncreaseRation(String(item.id))}
+                          variant="primary"
+                        >
+                          <FontAwesomeFreeSolid
+                            name="add"
+                            size={8}
+                            color={theme.colors.accent}
+                          />
+                        </Button>
 
-                        <View style={{ width: 38, height: 38 }}>
-                          {/* 🔄 Alterado para chamar a confirmação em vez de deletar direto */}
-                          <Button onPress={() => confirmDeleteRation(item.id)} variant="warning">
-                            <View style={{}}>
-                              <FontAwesomeFreeSolid
-                                name="trash-can"
-                                size={8}
-                                color={theme.colors.accent}
-                              />
-                            </View>
-                          </Button>
-                        </View>
+                        <Button
+                          onPress={() => handleDecreaseRation(String(item.id))}
+                          variant="primary"
+                        >
+                          <FontAwesomeFreeSolid
+                            name="minus"
+                            size={8}
+                            color={theme.colors.accent}
+                          />
+                        </Button>
+
+                        <Button
+                          onPress={() => confirmDeleteRation(String(item.id))}
+                          variant="warning"
+                        >
+                          <FontAwesomeFreeSolid
+                            name="trash-can"
+                            size={8}
+                            color={theme.colors.accent}
+                          />
+                        </Button>
                       </View>
                     </Card>
                   </View>
@@ -255,13 +282,47 @@ export const RationScreen = () => {
           variant={alertData.variant}
           title={alertData.title}
           message={alertData.message}
-          onClose={closeAlert}
-          // ➕ Se houver um ID selecionado, injeta as ações de confirmação
+          onClose={() => {
+            closeAlert();
+            setRationToDeleteId(null);
+          }}
           onConfirm={rationToDeleteId ? handleDeleteRation : undefined}
           confirmText="Deletar"
           cancelText="Cancelar"
         />
       )}
+
+<EditRationFormComponent
+        isVisible={openIncreaseRationForm}
+        type="Increase"
+        text="Adicionar Ração"
+        rationId={rationToUpdateId}
+        onShowAlert={showAlert} 
+        onSuccess={() => {
+          loadingRations();
+          showAlert("success", "Sucesso", "Estoque adicionado com sucesso.");
+        }}
+        onClose={() => {
+          setOpenIncreaseRationForm(false);
+          setRationToUpdateId(null);
+        }}
+      />
+
+      <EditRationFormComponent
+        isVisible={openDecreaseRationForm}
+        type="Decrease"
+        text="Retirar Ração"
+        rationId={rationToUpdateId}
+        onShowAlert={showAlert} 
+        onSuccess={() => {
+          loadingRations();
+          showAlert("success", "Sucesso", "Estoque reduzido com sucesso.");
+        }}
+        onClose={() => {
+          setOpenDecreaseRationForm(false);
+          setRationToUpdateId(null);
+        }}
+      />
     </View>
   );
 };
@@ -301,6 +362,19 @@ const styles = StyleSheet.create({
   rowContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  actionButtonsContainer: {
+    alignSelf: "flex-end",
+    gap: 10,
+    paddingVertical: 8,
+  },
+  iconWrapper: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: 20,
+    height: 50,
+    width: 50,
+    alignItems: "center",
+    justifyContent: "center",
   },
   leftColumn: {
     justifyContent: "center",
