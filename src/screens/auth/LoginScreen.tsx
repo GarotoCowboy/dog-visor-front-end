@@ -58,6 +58,7 @@ export const LoginScreen = () => {
   };
 
   const handleLogin = async () => {
+
     if (!formData.registration || !formData.password) {
       showAlert(
         "warning",
