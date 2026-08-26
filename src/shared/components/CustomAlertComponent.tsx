@@ -1,11 +1,11 @@
 import React from "react";
 import {
-  Modal,
-  View,
-  Text,
   Image,
-  TouchableOpacity,
+  Modal,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import happyDog from "../../../assets/warning_images/happyDog.png";
@@ -21,10 +21,10 @@ type CustomAlertProps = {
   message: string;
   onClose: () => void;
   variant: AlertVariant;
-  // ➕ Novas props opcionais para confirmação
   onConfirm?: () => void;
   confirmText?: string;
   cancelText?: string;
+  showCancel?: boolean;
 };
 
 const variantConfig = {
@@ -54,8 +54,17 @@ export const CustomAlertComponent = ({
   onConfirm,
   confirmText = "Confirmar",
   cancelText = "Cancelar",
+  showCancel = false,
 }: CustomAlertProps) => {
   const config = variantConfig[variant];
+
+  const handleConfirm = () => {
+    if (onConfirm) {
+      onConfirm();
+    } else {
+      onClose();
+    }
+  };
 
   return (
     <Modal transparent visible={visible} animationType="fade">
@@ -77,8 +86,7 @@ export const CustomAlertComponent = ({
 
           <Text style={styles.message}>{message}</Text>
 
-          {/* ➕ Se passou onConfirm, renderiza 2 botões; senão, mantém apenas o Ok */}
-          {onConfirm ? (
+          {showCancel ? (
             <View style={styles.actionsContainer}>
               <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
@@ -90,7 +98,7 @@ export const CustomAlertComponent = ({
 
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: config.color }]}
-                onPress={onConfirm}
+                onPress={handleConfirm}
                 activeOpacity={0.8}
               >
                 <Text style={styles.buttonText}>{confirmText}</Text>
@@ -98,11 +106,11 @@ export const CustomAlertComponent = ({
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: config.color }]}
-              onPress={onClose}
+              style={[styles.button, { backgroundColor: config.color, minWidth: 120 }]}
+              onPress={handleConfirm}
               activeOpacity={0.8}
             >
-              <Text style={styles.buttonText}>Ok</Text>
+              <Text style={styles.buttonText}>{confirmText}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -142,7 +150,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: "#333",
   },
-  // ➕ Estilos para botões duplos
   actionsContainer: {
     flexDirection: "row",
     gap: 12,
