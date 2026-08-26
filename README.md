@@ -106,8 +106,8 @@ npm install
 Crie um arquivo `.env` na raiz do projeto informando o IP e a porta de acesso ao **Cloud Gateway** do backend:
 
 ```env
-EXPO_PUBLIC_BACKEND_ADDRESS=192.168.1.X
-EXPO_PUBLIC_BACKEND_PORT=3003
+EXPO_PUBLIC_BACKEND_ADDRESS=192.168.X.X
+EXPO_PUBLIC_BACKEND_PORT=XXXX
 ```
 
 > 💡 **Dica:** Utilize o IP local da sua máquina na rede (ex: `192.168.X.X`) para que o aplicativo consiga se comunicar com o backend quando executado em um celular físico via Expo Go.
