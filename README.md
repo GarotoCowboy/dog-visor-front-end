@@ -140,3 +140,4 @@ npm run web       # Iniciar versão Web
 ## 🎓 Contexto Acadêmico
 
 Projeto desenvolvido como Trabalho de Conclusão de Curso (TCC) no **Instituto Federal Goiano — Campus Urutaí**, voltado ao suporte tecnológico e otimização dos processos do projeto de cães-guia da instituição.
+
