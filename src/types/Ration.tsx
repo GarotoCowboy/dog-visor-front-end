@@ -24,12 +24,54 @@ export interface ICreateRationRequest{
   registrationDate : string;
 }
 
-export interface IRationResponse{
-    id: string;
-     name: string;
+export interface IIncreaseRationStockRequest {
+  bagCount: number;
+  weightPerBagKg: number;
+}
+
+export interface IDecreaseRationStockRequest {
+  quantityKg: number;
+}
+
+export interface IUpdateRationRequest {
+  name?: string;
+  rationType?: ERATION_STATUS | null;
+  totalRationQuantity?: number;
+  currentRationQuantity?: number;
+  registrationDate?: string;
+}
+
+export interface IRationResponse {
+  id: string;
+  name: string;
   rationType: ERATION_STATUS;
   totalRationQuantity: number;
-  currentRationQuantity :number;
-  registrationDate : string;
+  currentRationQuantity: number;
+  registrationDate: string;
   stockStatus: EStockStatus;
 }
+
+export interface IRationConsumptionEstimateResponse {
+  rationId?: string;
+  rationName?: string;
+  rationType?: ERATION_STATUS;
+  currentStockKg?: number;
+  dailyConsumptionKg?: number;
+  estimatedDaysRemaining?: number;
+  estimatedDepletionDate?: string;
+}
+
+export interface IRationAlertResponse {
+  rationId?: string;
+  rationName?: string;
+  rationType?: ERATION_STATUS;
+  currentStockKg?: number;
+  stockStatus?: EStockStatus;
+  message?: string;
+}
+
+export interface ISearchRationParams {
+  rationType?: ERATION_STATUS;
+  stockStatus?: EStockStatus;
+}
+
