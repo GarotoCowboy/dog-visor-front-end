@@ -43,11 +43,13 @@ const styles = StyleSheet.create({
   title: {
     color: theme.colors.primary,
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.xxl,
   },
   subtitle: {
     color: theme.colors.secondary,
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.base,
     marginTop: 12,
   },

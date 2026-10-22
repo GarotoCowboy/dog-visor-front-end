@@ -6,10 +6,11 @@ import FontAwesomeFreeSolid from "@react-native-vector-icons/fontawesome-free-so
 import { theme } from "../../theme/theme";
 import { SCREENS } from "../consts/screens";
 import VeterinarianHomeScreen from "../screens/veterinarian/VeterinarianHomeScreen";
-import { DogsScreen } from "../screens/shared/DogsScreen";
+import { DogsScreen } from "../screens/dogs/DogsScreen";
 import { CoordinatorHomeScreen } from "../screens/coordinator/CoordinatorHomeScreen";
-import { ProfileScreen } from "../screens/shared/ProfileScreen";
-import { NotificationsScreen } from "../screens/shared/NotificationsScreen";
+import { ProfileScreen } from "../screens/profile/ProfileScreen";
+import { NotificationsScreen } from "../screens/notifications/NotificationsScreen";
+import { TrainerHomeScreen } from "../screens/trainer/TrainerHomeScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -20,6 +21,7 @@ const tabScreenOptions = ({ route }: { route: { name: string } }) => ({
     const labels: Record<string, string> = {
       [SCREENS.VETERINARIAN_HOME]: "Início",
       [SCREENS.COORDINATOR_HOME]: "Início",
+      [SCREENS.TRAINER_HOME]: "Início",
       [SCREENS.NOTIFICATIONS_SCREEN]: "Avisos",
       [SCREENS.DOG_SCREEN]: "Cães",
       [SCREENS.PROFILE_SCREEN]: "Perfil",
@@ -41,7 +43,7 @@ const tabScreenOptions = ({ route }: { route: { name: string } }) => ({
     );
   },
   tabBarIcon: ({ focused, size }: { focused: boolean; size: number }) => {
-    let iconName = "house";
+    let iconName: any = "house";
     if (route.name === SCREENS.DOG_SCREEN) {
       iconName = "dog";
     } else if (route.name === SCREENS.NOTIFICATIONS_SCREEN) {
@@ -117,6 +119,11 @@ export function CoordinatorTabs() {
 export function TrainerTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
+      <Tab.Screen
+        name={SCREENS.TRAINER_HOME}
+        component={TrainerHomeScreen}
+        options={{ headerTitle: "Treinamento & Avaliações" }}
+      />
       <Tab.Screen
         name={SCREENS.NOTIFICATIONS_SCREEN}
         component={NotificationsScreen}
