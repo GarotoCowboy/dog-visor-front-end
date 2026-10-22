@@ -92,3 +92,40 @@ export interface IEmployeeResponse {
   type: EmployeeType;
   active?: boolean;
 }
+
+export interface ICreateEmployeeRequest {
+  name: string;
+  email: string;
+  phone: string;
+  registration: string;
+  shift: EmployeeShift;
+  type: EmployeeType;
+}
+
+
+// --- Helpers tipados para a união de perfis (evitam casts `as any`) ---
+type AnyEmployee = UserProfileResponse | IEmployeeResponse;
+
+/** Identificador do funcionário: employeeId, collaboratorId ou userId (nessa ordem). */
+export const getEmployeeIdentifier = (
+  user?: AnyEmployee | null,
+): string | undefined => {
+  if (!user) return undefined;
+  if ("employeeId" in user && user.employeeId) return user.employeeId;
+  if ("collaboratorId" in user && user.collaboratorId) return user.collaboratorId;
+  return user.userId || undefined;
+};
+
+export const getUserCrmv = (user?: AnyEmployee | null): string | undefined =>
+  user && "crmv" in user ? user.crmv : undefined;
+
+export const getUserAreaOfExpertise = (
+  user?: AnyEmployee | null,
+): string | undefined =>
+  user && "areaOfExpertise" in user ? user.areaOfExpertise : undefined;
+
+export const isSameUser = (a: AnyEmployee, b: AnyEmployee): boolean => {
+  if (a.registration && a.registration === b.registration) return true;
+  const idA = getEmployeeIdentifier(a);
+  return Boolean(idA) && idA === getEmployeeIdentifier(b);
+};

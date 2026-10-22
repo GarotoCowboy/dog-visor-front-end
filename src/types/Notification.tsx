@@ -34,6 +34,9 @@ export interface INotificationTaskCompletedUpdate {
   notificationId?: string;
   taskId?: string;
   completed?: boolean;
+  completedById?: string;
+  completedByName?: string;
+  completedAt?: string;
 }
 
 export interface INotificationResponse {
@@ -42,16 +45,20 @@ export interface INotificationResponse {
   message: string;
   messageType: MessageType;
   audienceType?: AudienceType;
+  createdById?: string;
+  createdByName?: string;
+  status?: string;
+  isCompleted?: boolean;
+  completedById?: string;
+  completedByName?: string;
+  completedAt?: string;
   eventDate?: string;
   limitDate?: string;
-  createdByName?: string;
   createdAt: string;
   finished?: boolean;
   completed?: boolean;
   taskCompleted?: boolean;
-  isCompleted?: boolean;
   active?: boolean;
-  status?: string;
 }
 
 export const isNotificationFinished = (n: any): boolean => {

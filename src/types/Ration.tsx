@@ -49,6 +49,7 @@ export interface IRationResponse {
   currentRationQuantity: number;
   registrationDate: string;
   stockStatus: EStockStatus;
+  lastDailyDeductionDate?: string;
 }
 
 export interface IRationConsumptionEstimateResponse {
@@ -56,9 +57,19 @@ export interface IRationConsumptionEstimateResponse {
   rationName?: string;
   rationType?: ERATION_STATUS;
   currentStockKg?: number;
+  currentRationQuantityKg?: number;
   dailyConsumptionKg?: number;
+  totalDailyConsumptionKg?: number;
   estimatedDaysRemaining?: number;
   estimatedDepletionDate?: string;
+  lastDailyDeductionDate?: string;
+  dailyDeductionAppliedToday?: boolean;
+  dogConsumptions?: Array<{
+    dogId: string;
+    feedingPlanId: string;
+    feedingPlanName: string;
+    dailyQuantityKg: number;
+  }>;
 }
 
 export interface IRationAlertResponse {
