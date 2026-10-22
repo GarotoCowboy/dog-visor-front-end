@@ -1,0 +1,462 @@
+import React, { useCallback, useContext, useEffect, useState } from "react";
+import { ScrollView, StyleSheet } from "react-native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
+
+import { RootStackParamList } from "../../routes";
+import { SCREENS } from "../../consts/screens";
+import { useAlert } from "../../hooks/useAlert";
+import { theme } from "../../../theme/theme";
+import { femaleDogIcons, maleDogIcons } from "../../consts/dogIcons";
+import {
+  EDOG_STATUS,
+  IDogResponse,
+} from "../../types/Dog";
+import { IDogReproductionResponse } from "../../types/DogHealth";
+import {
+  getLastDogReproductionByDogIdService,
+  getTrainingReportByDogIdService,
+  listBehaviorTestsByDogIdService,
+  listTrainingsByDogIdService,
+  listVolhardTestsByDogIdService,
+  updateDogService,
+} from "../../service/api";
+
+import {
+  getCachedReport,
+  getCachedTests,
+  getCachedTrainings,
+  saveCachedReport,
+} from "../../service/trainingOfflineService";
+import { trainingSyncService } from "../../service/trainingSyncService";
+import {
+  IDogTest,
+  ITrainingReportResponse,
+  ITrainingResponse,
+  ScoreComparisonLabel,
+  TestStatus,
+  TestType,
+} from "../../types/Training";
+import {
+  decodeBehaviorResultProgress,
+  decodeVolhardResultProgress,
+} from "../trainer/constants/testQuestionsData";
+import { AuthContext } from "../../service/authContext";
+import { EUserRoles } from "../../types/userRoles";
+import { isDogInKennel } from "./components/DogListItemCard";
+import { DogIdentityCard } from "./components/details/DogIdentityCard";
+import { DogReproductionCard } from "./components/details/DogReproductionCard";
+import { DogTrainingTestsCard } from "./components/details/DogTrainingTestsCard";
+import { TrainingHistoryModal } from "../trainer/components/TrainingHistoryModal";
+import { EditDogStatusModal } from "./components/details/EditDogStatusModal";
+
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  typeof SCREENS.DOG_DETAILS_SCREEN
+>;
+
+const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
+  (acc, item) => {
+    acc[item.key] = item.image;
+    return acc;
+  },
+  {} as Record<string, any>,
+);
+
+export const DogDetailsScreen = ({ route, navigation }: Props) => {
+  const { dog: initialDog } = route.params;
+  const [dog, setDog] = useState<IDogResponse>(initialDog);
+  const [imageSource, setImageSource] = useState(avatarMap[dog.avatarKey]);
+
+  // Permissões de usuário
+  const { roles } = useContext(AuthContext);
+  const canEditDog =
+    roles.includes(EUserRoles.ROLE_VETERINARIAN) ||
+    roles.includes(EUserRoles.ROLE_COORDINATOR);
+
+  const isFemale = dog.sex?.toUpperCase() === "F";
+
+  // Estado do controle reprodutivo (se for fêmea)
+  const [lastHeat, setLastHeat] = useState<IDogReproductionResponse | null>(null);
+  const [loadingHeat, setLoadingHeat] = useState(false);
+
+  // Estado de Treinamento e Testes (Volhard & Behavior)
+  const [training, setTraining] = useState<ITrainingResponse | null>(null);
+  const [report, setReport] = useState<ITrainingReportResponse | null>(null);
+  const [tests, setTests] = useState<IDogTest[]>([]);
+  const [loadingTraining, setLoadingTraining] = useState(false);
+  const [loadingTests, setLoadingTests] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Modal de edição de status / canil
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editStatus, setEditStatus] = useState<EDOG_STATUS | null>(
+    dog.status || EDOG_STATUS.SOCIALIZACAO,
+  );
+  const [editOnKennel, setEditOnKennel] = useState<boolean>(isDogInKennel(dog));
+  const [updating, setUpdating] = useState(false);
+
+  const { showAlert, AlertModal } = useAlert();
+
+  const fetchTrainingAndTests = useCallback(async () => {
+    const dogId = dog.ID;
+    if (!dogId) return;
+
+    // 1. Carrega testes do cache local
+    let currentTests: IDogTest[] = [];
+    try {
+      setLoadingTests(true);
+      const cachedTests = await getCachedTests();
+      currentTests = cachedTests || [];
+      setTests(currentTests);
+    } catch (e) {
+      console.log("Erro ao buscar testes do cão:", e);
+    } finally {
+      setLoadingTests(false);
+    }
+
+    // 2. Carrega treinamento, relatório e testes remotos
+    try {
+      setLoadingTraining(true);
+
+      // Cache primeiro
+      const cachedTrainings = await getCachedTrainings();
+      const cachedT = cachedTrainings.find((t) => t.dogId === dogId);
+      if (cachedT) {
+        setTraining(cachedT);
+      }
+
+      const cachedRep =
+        (await getCachedReport(dogId)) ||
+        (cachedT?.id ? await getCachedReport(cachedT.id) : null);
+      if (cachedRep) {
+        setReport(cachedRep);
+      }
+
+      // Se online, atualiza da API
+      const isOnline = await trainingSyncService.checkIsOnline();
+      if (isOnline) {
+        try {
+          const list = await listTrainingsByDogIdService(dogId);
+          if (list && list.length > 0) {
+            setTraining(list[0]);
+          }
+        } catch (e) {}
+
+        try {
+          const rep = await getTrainingReportByDogIdService(dogId);
+          if (rep) {
+            setReport(rep);
+            await saveCachedReport(dogId, rep);
+          }
+        } catch (e) {}
+
+        // Busca testes específicos deste cão na API
+        try {
+          const [volhardsRes, behaviorsRes] = await Promise.allSettled([
+            listVolhardTestsByDogIdService(dogId),
+            listBehaviorTestsByDogIdService(dogId),
+          ]);
+
+          const volhardItems =
+            volhardsRes.status === "fulfilled" && Array.isArray(volhardsRes.value)
+              ? volhardsRes.value
+              : [];
+
+          const behaviorItems =
+            behaviorsRes.status === "fulfilled" && Array.isArray(behaviorsRes.value)
+              ? behaviorsRes.value
+              : [];
+
+          const remoteDogTests: IDogTest[] = [];
+          const cachedById = new Map<string, IDogTest>(
+            currentTests.map((c) => [c.id, c]),
+          );
+
+          volhardItems.forEach((v) => {
+            const cachedMatch = cachedById.get(v.id);
+            const decoded = decodeVolhardResultProgress(
+              v.result,
+              cachedMatch?.answeredVolhardKeys,
+            );
+            remoteDogTests.push({
+              id: v.id,
+              dogId: v.dogId,
+              dogsName: dog.name,
+              dogsBreed: dog.race || "Raça não informada",
+              avatarKey: dog.avatarKey,
+              type: TestType.VOLHARD,
+              title: "Teste Volhard",
+              date: v.date || "",
+              description: decoded.cleanDescription,
+              score: decoded.isCompleted
+                ? `Estabilidade: ${v.stability}/5`
+                : `Em andamento: ${decoded.completedCount}/${decoded.totalCount} etapas`,
+              status: decoded.isCompleted
+                ? TestStatus.COMPLETED
+                : TestStatus.PENDING,
+              completedCount: decoded.completedCount,
+              totalCount: decoded.totalCount,
+              answeredVolhardKeys: decoded.answeredKeys,
+              isSynced: true,
+              volhardDetails: v,
+            });
+          });
+
+          behaviorItems.forEach((b) => {
+            const cachedMatch = cachedById.get(b.id);
+            const decoded = decodeBehaviorResultProgress(
+              b.result,
+              b.characteristics,
+              cachedMatch?.answeredBehaviorNumbers,
+            );
+            const compLabel = b.scoreComparison
+              ? ScoreComparisonLabel[b.scoreComparison] || b.scoreComparison
+              : "Concluído";
+            remoteDogTests.push({
+              id: b.id,
+              dogId: b.dogId,
+              dogsName: dog.name,
+              dogsBreed: dog.race || "Raça não informada",
+              avatarKey: dog.avatarKey,
+              type: TestType.BEHAVIOR,
+              title: "Teste Behavior",
+              date: b.date || "",
+              description: decoded.cleanDescription,
+              score: decoded.isCompleted
+                ? compLabel
+                : `Em andamento: ${decoded.completedCount}/${decoded.totalCount} aspectos`,
+              status: decoded.isCompleted
+                ? TestStatus.COMPLETED
+                : TestStatus.PENDING,
+              completedCount: decoded.completedCount,
+              totalCount: decoded.totalCount,
+              answeredBehaviorNumbers: decoded.answeredNumbers,
+              isSynced: true,
+              behaviorDetails: b,
+            });
+          });
+
+          if (remoteDogTests.length > 0) {
+            // Mantém os testes de outros cães ou não sincronizados
+            const otherDogsTests = currentTests.filter((t) => t.dogId !== dogId);
+            const unsyncedThisDog = currentTests.filter(
+              (t) => t.dogId === dogId && t.isSynced === false,
+            );
+            const merged = [...otherDogsTests, ...unsyncedThisDog, ...remoteDogTests];
+            const unique = Array.from(
+              new Map(merged.map((item) => [item.id, item])).values(),
+            );
+            setTests(unique);
+          }
+        } catch (testErr) {
+          console.log("Erro ao buscar testes remotos do cão:", testErr);
+        }
+      }
+    } catch (e) {
+      console.log("Erro ao carregar dados de treinamento do cão:", e);
+    } finally {
+      setLoadingTraining(false);
+    }
+
+  }, [dog.ID]);
+
+  useEffect(() => {
+    setImageSource(avatarMap[dog.avatarKey]);
+    if (isFemale) {
+      fetchLastHeat();
+    }
+    fetchTrainingAndTests();
+  }, [dog, isFemale, fetchTrainingAndTests]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isFemale) {
+        fetchLastHeat();
+      }
+      fetchTrainingAndTests();
+    }, [isFemale, dog.ID, fetchTrainingAndTests]),
+  );
+
+  const fetchLastHeat = async () => {
+    try {
+      setLoadingHeat(true);
+      const res = await getLastDogReproductionByDogIdService(dog.ID);
+      setLastHeat(res);
+    } catch (err) {
+      console.log("Erro ao buscar último cio da cadela:", err);
+    } finally {
+      setLoadingHeat(false);
+    }
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "Não informado";
+    const parts = dateStr.split("T")[0].split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateStr;
+  };
+
+  const handleOpenEditModal = () => {
+    if (!canEditDog) {
+      showAlert(
+        "warning",
+        "Acesso Restrito",
+        "Apenas o médico veterinário ou o coordenador podem alterar o status e presença no canil do cão.",
+      );
+      return;
+    }
+    setEditStatus(dog.status || EDOG_STATUS.SOCIALIZACAO);
+    setEditOnKennel(isDogInKennel(dog));
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveStatus = async () => {
+    if (!editStatus) {
+      showAlert(
+        "warning",
+        "Status Obrigatório",
+        "Por favor, selecione um status para o cão.",
+      );
+      return;
+    }
+
+    if (
+      editOnKennel &&
+      (editStatus === EDOG_STATUS.DOADO || editStatus === EDOG_STATUS.FALECIDO)
+    ) {
+      showAlert(
+        "warning",
+        "Restrição de Canil",
+        "Cães com status Doado ou Falecido não podem estar no canil.",
+      );
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const updatedDog = await updateDogService(dog.ID, {
+        ID: dog.ID,
+        status: editStatus,
+        onKennel: editOnKennel,
+      });
+
+      setDog(updatedDog);
+      setIsEditModalOpen(false);
+
+      showAlert(
+        "success",
+        "Atualizado!",
+        `Status e presença no canil de ${dog.name} atualizados com sucesso.`,
+      );
+    } catch (err: any) {
+      console.log("Erro ao atualizar cão:", err);
+      const message =
+        err?.response?.data?.message ||
+        "Não foi possível atualizar o cão. Verifique os dados.";
+      showAlert("error", "Erro ao Atualizar", message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleNavigateToReproduction = (openCreate: boolean = false) => {
+    (navigation as any).navigate(SCREENS.REPRODUCTION_MANAGEMENT_SCREEN, {
+      preselectedDog: dog,
+      openCreate,
+    });
+  };
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* 1. IDENTIFICAÇÃO E BIOMETRIA */}
+      <DogIdentityCard
+        dog={dog}
+        imageSource={imageSource}
+        canEditDog={canEditDog}
+        inKennel={isDogInKennel(dog)}
+        isFemale={isFemale}
+        onEditStatus={handleOpenEditModal}
+        formatDate={formatDate}
+      />
+
+      {/* 2. TREINAMENTO DE CÃO-GUIA & TESTES VOLHARD / COMPORTAMENTAIS */}
+      <DogTrainingTestsCard
+        dog={dog}
+        training={training}
+        report={report}
+        tests={tests}
+        loadingTraining={loadingTraining}
+        loadingTests={loadingTests}
+        onOpenReport={() => setIsReportModalOpen(true)}
+      />
+
+      {/* 3. CICLO REPRODUTIVO (FÊMEAS) */}
+      {isFemale && (
+        <DogReproductionCard
+          dog={dog}
+          canEditDog={canEditDog}
+          lastHeat={lastHeat}
+          loadingHeat={loadingHeat}
+          formatDate={formatDate}
+          onNavigateToReproduction={handleNavigateToReproduction}
+        />
+      )}
+
+      {/* 4. MODAL DE RELATÓRIO COMPLETO POR ETAPA */}
+      <TrainingHistoryModal
+        visible={isReportModalOpen}
+        training={
+          training || {
+            id: `train_${dog.ID}`,
+            trainerId: "",
+            dogId: dog.ID,
+            dogsName: dog.name,
+            dogsBreed: dog.race || "",
+            monthYear: new Date().getFullYear() * 100 + (new Date().getMonth() + 1),
+            day: new Date().getDate(),
+            evaluationType: "Guia",
+            currentStage: report?.currentStage || 1,
+            status: report?.status || null,
+          }
+        }
+        report={report}
+        onClose={() => setIsReportModalOpen(false)}
+      />
+
+      {/* 5. MODAL DE EDIÇÃO DE STATUS E CANIL */}
+      <EditDogStatusModal
+        visible={isEditModalOpen}
+        dogName={dog.name}
+        editStatus={editStatus}
+        setEditStatus={setEditStatus}
+        editOnKennel={editOnKennel}
+        setEditOnKennel={setEditOnKennel}
+        updating={updating}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleSaveStatus}
+      />
+
+      {/* 6. ALERTA CUSTOMIZADO */}
+      <AlertModal />
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  contentContainer: {
+    padding: 16,
+    gap: 14,
+    paddingBottom: 32,
+  },
+});
