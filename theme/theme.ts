@@ -1,3 +1,11 @@
+import { Platform } from "react-native";
+
+const systemFont = Platform.select({
+  ios: "System",
+  android: "sans-serif",
+  default: "System",
+});
+
 export const colors = {
   primary: "#2a5654",
   secondary: "#356c69",
@@ -18,12 +26,20 @@ export const colors = {
 } as const;
 
 export const typography = {
+  // Fontes nativas de cada plataforma (não há assets Inter/Nunito empacotados).
+  // O peso visual é controlado por `fontWeight` (veja o mapa abaixo).
   fontFamily: {
-    regular: "Inter-Regular",
-    medium: "Inter-Medium",
-    semiBold: "Inter-SemiBold",
-    bold: "Inter-Bold",
-    display: "Nunito-Bold", // headings
+    regular: systemFont,
+    medium: systemFont,
+    semiBold: systemFont,
+    bold: systemFont,
+    display: systemFont, // headings
+  },
+  fontWeight: {
+    regular: "400",
+    medium: "500",
+    semiBold: "600",
+    bold: "700",
   },
   fontSize: {
     xs: 12,
