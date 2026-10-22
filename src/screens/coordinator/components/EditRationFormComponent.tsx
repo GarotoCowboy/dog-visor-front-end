@@ -224,6 +224,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.text,
     textAlign: "center",
@@ -242,11 +243,13 @@ const styles = StyleSheet.create({
   },
   previewLabel: {
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text,
   },
   previewValue: {
     fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.primary,
   },

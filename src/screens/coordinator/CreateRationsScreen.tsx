@@ -1,6 +1,13 @@
-import { StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Card } from "../../shared/components/CardComponent";
-import { TipsCardsComponent } from "./components/TipsCardsComponent";
 import { Button } from "../../shared/components/ButtonComponent";
 import { useState } from "react";
 import {
@@ -12,13 +19,12 @@ import { useNavigation } from "@react-navigation/native";
 import FormComponent from "../../shared/components/FormComponent";
 import { postDogRation } from "../../service/api";
 import axios from "axios";
-import { CustomAlertComponent } from "../../shared/components/CustomAlertComponent";
 import { theme } from "../../../theme/theme";
+import { useAlert } from "../../hooks/useAlert";
 
 export const CreateRationsScreen = () => {
   const navigator = useNavigation();
-
-  type AlertVariant = "warning" | "error" | "success";
+  const { showAlert, AlertModal } = useAlert();
 
   type RationFormData = {
     name: string;
@@ -28,22 +34,7 @@ export const CreateRationsScreen = () => {
     rationType: ERATION_STATUS | null;
   };
 
-  type AlertData = {
-    visible: boolean;
-    variant: AlertVariant;
-    title: string;
-    message: string;
-    goBackOnClose?: boolean;
-  };
   const [loading, setLoading] = useState(false);
-
-  const [alertData, setAlertData] = useState<AlertData>({
-    visible: false,
-    variant: "warning",
-    title: "",
-    message: "",
-    goBackOnClose: false,
-  });
 
   const [formData, setFormData] = useState<RationFormData>({
     name: "",
@@ -52,35 +43,6 @@ export const CreateRationsScreen = () => {
     registrationDate: "",
     rationType: null,
   });
-
-  const showAlert = (
-    variant: AlertVariant,
-    title: string,
-    message: string,
-    goBackOnClose = false,
-  ) => {
-    setAlertData({
-      visible: true,
-      variant,
-      title,
-      message,
-      goBackOnClose,
-    });
-  };
-
-  const closeAlert = () => {
-    const shouldGoBack = alertData.goBackOnClose;
-
-    setAlertData((prev) => ({
-      ...prev,
-      visible: false,
-      goBackOnClose: false,
-    }));
-
-    if (shouldGoBack) {
-      navigator.goBack();
-    }
-  };
 
   const verifyValuesIsNotEmpty = () => {
     if (
@@ -112,7 +74,9 @@ export const CreateRationsScreen = () => {
       setLoading(true);
       await postDogRation(requestData);
 
-      showAlert("success", "Sucesso", " Ração criado com sucesso.", true);
+      showAlert("success", "Sucesso", "Ração criada com sucesso.", {
+        onConfirm: () => navigator.goBack(),
+      });
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.log("STATUS:", error.response?.status);
@@ -134,106 +98,118 @@ export const CreateRationsScreen = () => {
     }
   };
 
-  const handleCancel = ()=>{
+  const handleCancel = () => {
     return navigator.goBack();
-  }
+  };
+
   return (
-    <View>
-      <View style={styles.cardContainer}>
-        <Card>
-          <View style={styles.formContainer}>
-            <FormComponent
-              text="Nome"
-              placeholder="Canin"
-              value={formData.name}
-              onChangeText={(text) => {
-                setFormData((prev) => ({
-                  ...prev,
-                  name: text,
-                }));
-              }}
-            />
-            <FormComponent
-              variant="dropdown"
-              editable={false}
-              text="Tipo da Ração"
-              placeholder="Selecione o tipo da ração do cão"
-              value={
-                formData.rationType ? RationTypeLabel[formData.rationType] : ""
-              }
-              onChangeText={() => {}}
-              options={[
-                { label: "Normal", value: ERATION_STATUS.NORMAL },
-                { label: "Filhote", value: ERATION_STATUS.PUPPY },
-                { label: "Especial", value: ERATION_STATUS.SPECIAL },
-              ]}
-              onSelect={(val) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  rationType: val as ERATION_STATUS,
-                }))
-              }
-            />
-            <FormComponent
-              keyboardType="numeric"
-              text="Quantidade"
-              placeholder="15KG"
-              value={formData.totalRationQuantity.toString()}
-              onChangeText={(text) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  totalRationQuantity: text,
-                }))
-              }
-            />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.cardContainer}>
+          <Card>
+            <View style={styles.formContainer}>
+              <FormComponent
+                text="Nome"
+                placeholder="Canin"
+                value={formData.name}
+                onChangeText={(text) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    name: text,
+                  }));
+                }}
+              />
+              <FormComponent
+                variant="dropdown"
+                editable={false}
+                text="Tipo da Ração"
+                placeholder="Selecione o tipo da ração do cão"
+                value={
+                  formData.rationType ? RationTypeLabel[formData.rationType] : ""
+                }
+                onChangeText={() => {}}
+                options={[
+                  { label: "Normal", value: ERATION_STATUS.NORMAL },
+                  { label: "Filhote", value: ERATION_STATUS.PUPPY },
+                  { label: "Especial", value: ERATION_STATUS.SPECIAL },
+                ]}
+                onSelect={(val) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    rationType: val as ERATION_STATUS,
+                  }))
+                }
+              />
+              <FormComponent
+                keyboardType="numeric"
+                text="Quantidade"
+                placeholder="15KG"
+                value={formData.totalRationQuantity.toString()}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    totalRationQuantity: text,
+                  }))
+                }
+              />
 
-            <FormComponent
-              variant="date"
-              text="Data de Registro"
-              placeholder="2026-04-07"
-              value={formData.registrationDate}
-              onChangeText={(text) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  registrationDate: text,
-                }))
-              }
-            />
-          </View>
-        </Card>
-        <View style={styles.buttonContainer}>
-          <View>
-            <Button
-              text="Cancelar"
-              onPress={handleCancel}
-              disabled={loading}
-              variant="transparent"
-            />
-          </View>
+              <FormComponent
+                variant="date"
+                text="Data de Registro"
+                placeholder="2026-04-07"
+                value={formData.registrationDate}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    registrationDate: text,
+                  }))
+                }
+              />
+            </View>
+          </Card>
+          <View style={styles.buttonContainer}>
+            <View style={styles.cancelButton}>
+              <Button
+                text="Cancelar"
+                onPress={handleCancel}
+                disabled={loading}
+                variant="transparent"
+              />
+            </View>
 
-          <View>
-            <Button
-              text="Salvar Ração"
-              onPress={handleSaveRation}
-              disabled={loading}
-            />
+            <View style={styles.registerButton}>
+              <Button
+                onPress={handleSaveRation}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={theme.colors.white} />
+                ) : (
+                  <Text style={styles.buttonText}>Salvar Ração</Text>
+                )}
+              </Button>
+            </View>
           </View>
         </View>
-      </View>
-      {alertData.visible && (
-        <CustomAlertComponent
-          visible={alertData.visible}
-          variant={alertData.variant}
-          title={alertData.title}
-          message={alertData.message}
-          onClose={closeAlert}
-        />
-      )}
-    </View>
+      </ScrollView>
+
+      <AlertModal />
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    paddingVertical: 16,
+    paddingBottom: 32,
+  },
   cardContainer: {
     width: "90%",
     alignSelf: "center",
@@ -242,11 +218,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 8,
-  },
-  cardHeaderTitle: {
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: theme.typography.fontSize.lg,
-    paddingBottom: 16,
   },
   buttonContainer: {
     width: "100%",
@@ -265,7 +236,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.white,
+    textAlign: "center",
   },
 });

@@ -12,25 +12,22 @@ import { SCREENS } from "../../consts/screens";
 import { useCallback, useState } from "react";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
-  ERATION_STATUS,
+  IRationConsumptionEstimateResponse,
   IRationResponse,
 } from "../../types/Ration";
-import { deleteDogRation, getDogRation } from "../../service/api";
+import {
+  applyDailyConsumptionAllService,
+  applyDailyConsumptionService,
+  deleteDogRation,
+  getAllRationEstimates,
+  getDogRation,
+} from "../../service/api";
 import { theme } from "../../../theme/theme";
-import { Card } from "../../shared/components/CardComponent";
 import { FontAwesomeFreeSolid } from "@react-native-vector-icons/fontawesome-free-solid";
-import { Button } from "../../shared/components/ButtonComponent";
-import { CustomAlertComponent } from "../../shared/components/CustomAlertComponent";
 import { EditRationFormComponent } from "./components/EditRationFormComponent";
-
-type AlertVariant = "warning" | "error" | "success";
-
-type AlertData = {
-  visible: boolean;
-  variant: AlertVariant;
-  title: string;
-  message: string;
-};
+import { RationSummaryCards } from "./components/rations/RationSummaryCards";
+import { RationItemCard } from "./components/rations/RationItemCard";
+import { useAlert } from "../../hooks/useAlert";
 
 type RationScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -39,43 +36,33 @@ type RationScreenNavigationProp = NativeStackNavigationProp<
 
 export const RationScreen = () => {
   const navigation = useNavigation<RationScreenNavigationProp>();
+  const { showAlert, showConfirm, AlertModal } = useAlert();
 
   const [rations, setRations] = useState<IRationResponse[]>([]);
+  const [estimates, setEstimates] = useState<
+    Record<string, IRationConsumptionEstimateResponse>
+  >({});
   const [loading, setLoading] = useState(false);
   const [openIncreaseRationForm, setOpenIncreaseRationForm] = useState(false);
   const [openDecreaseRationForm, setOpenDecreaseRationForm] = useState(false);
-
-  const [rationToDeleteId, setRationToDeleteId] = useState<string | null>(null);
   const [rationToUpdateId, setRationToUpdateId] = useState<string | null>(null);
-
-  const [alertData, setAlertData] = useState<AlertData>({
-    visible: false,
-    variant: "warning",
-    title: "",
-    message: "",
-  });
-
-  const showAlert = (variant: AlertVariant, title: string, message: string) => {
-    setAlertData({
-      visible: true,
-      variant,
-      title,
-      message,
-    });
-  };
-
-  const closeAlert = () => {
-    setAlertData((prev) => ({
-      ...prev,
-      visible: false,
-    }));
-  };
 
   const loadingRations = async () => {
     try {
       setLoading(true);
-      const data = await getDogRation();
+      const [data, ests] = await Promise.all([
+        getDogRation(),
+        getAllRationEstimates().catch(() => []),
+      ]);
       setRations(data);
+
+      if (Array.isArray(ests)) {
+        const map: Record<string, IRationConsumptionEstimateResponse> = {};
+        ests.forEach((e) => {
+          if (e.rationId) map[String(e.rationId)] = e;
+        });
+        setEstimates(map);
+      }
     } catch (error) {
       console.error("Erro ao buscar ração", error);
       showAlert(
@@ -88,40 +75,143 @@ export const RationScreen = () => {
     }
   };
 
-  const confirmDeleteRation = (id: string) => {
-    setRationToDeleteId(id);
-    showAlert(
-      "warning",
-      "Confirmar exclusão",
-      "Tem certeza que deseja deletar esta ração?",
+  const handleRequestDailyDeduction = (item: IRationResponse) => {
+    const est = estimates[String(item.id)];
+    const dailyKg =
+      est?.totalDailyConsumptionKg ?? est?.dailyConsumptionKg ?? 0;
+    const todayStr = new Date().toISOString().split("T")[0];
+    const isAppliedToday = Boolean(
+      est?.dailyDeductionAppliedToday ||
+        (item.lastDailyDeductionDate &&
+          item.lastDailyDeductionDate === todayStr),
+    );
+
+    if (isAppliedToday) {
+      showAlert(
+        "warning",
+        "Baixa Já Realizada",
+        `A baixa diária para a ração "${item.name}" já foi realizada hoje. O consumo não será debitado novamente.`,
+      );
+      return;
+    }
+
+    if (dailyKg <= 0) {
+      showAlert(
+        "warning",
+        "Sem Consumo Previsto",
+        `Não há planos alimentares ativos consumindo a ração "${item.name}" hoje.`,
+      );
+      return;
+    }
+
+    showConfirm(
+      "Confirmar Baixa Diária",
+      `Deseja dar baixa diária de ${dailyKg.toFixed(2)} kg na ração "${item.name}" referente ao consumo planejado para hoje?`,
+      async () => {
+        try {
+          setLoading(true);
+          await applyDailyConsumptionService(String(item.id));
+          await loadingRations();
+          showAlert(
+            "success",
+            "Baixa Realizada",
+            `Baixa diária de ${dailyKg.toFixed(2)} kg registrada com sucesso!`,
+          );
+        } catch (error: any) {
+          console.error("Erro ao dar baixa diária", error);
+          const message =
+            error?.response?.data?.message ||
+            "Não foi possível abater o consumo diário da ração. Tente novamente.";
+          showAlert("error", "Erro na Baixa Diária", message);
+        } finally {
+          setLoading(false);
+        }
+      },
+      { confirmText: "Confirmar" },
     );
   };
 
-  const handleDeleteRation = async () => {
-    if (!rationToDeleteId) return;
-
-    const id = rationToDeleteId;
-    closeAlert();
-    setRationToDeleteId(null);
-
-    try {
-      setLoading(true);
-      await deleteDogRation(id);
-
-      setRations((prev) =>
-        prev.filter((item) => String(item.id) !== String(id)),
+  const handleRequestBatchDeduction = () => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const pendingRations = rations.filter((r) => {
+      const est = estimates[String(r.id)];
+      const dailyKg =
+        est?.totalDailyConsumptionKg ?? est?.dailyConsumptionKg ?? 0;
+      const isAppliedToday = Boolean(
+        est?.dailyDeductionAppliedToday ||
+          (r.lastDailyDeductionDate && r.lastDailyDeductionDate === todayStr),
       );
-      showAlert("success", "Sucesso", "Ração deletada com sucesso.");
-    } catch (error) {
-      console.error("Erro ao deletar ração", error);
+      return dailyKg > 0 && !isAppliedToday;
+    });
+
+    if (pendingRations.length === 0) {
       showAlert(
-        "error",
-        "Erro ao deletar ração",
-        "Não foi possível remover a ração. Tente novamente.",
+        "warning",
+        "Todas as Baixas em Dia",
+        "Todas as rações com planos ativos já tiveram a baixa diária realizada hoje!",
       );
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    const pendingTotalDaily = pendingRations.reduce((sum, r) => {
+      const est = estimates[String(r.id)];
+      return (
+        sum + (est?.totalDailyConsumptionKg ?? est?.dailyConsumptionKg ?? 0)
+      );
+    }, 0);
+
+    showConfirm(
+      "Confirmar Baixa Geral",
+      `Deseja dar baixa no consumo diário de ${pendingRations.length} ração(ões) pendente(s) hoje (Total: ${pendingTotalDaily.toFixed(2)} kg)?`,
+      async () => {
+        try {
+          setLoading(true);
+          const updated = await applyDailyConsumptionAllService();
+          await loadingRations();
+          showAlert(
+            "success",
+            "Baixa Geral Concluída",
+            `Baixa diária aplicada com sucesso a ${updated.length} rações!`,
+          );
+        } catch (error: any) {
+          console.error("Erro na baixa diária em lote", error);
+          const message =
+            error?.response?.data?.message ||
+            "Não foi possível abater o consumo diário de todas as rações.";
+          showAlert("error", "Erro na Baixa Geral", message);
+        } finally {
+          setLoading(false);
+        }
+      },
+      { confirmText: "Confirmar" },
+    );
+  };
+
+  const confirmDeleteRation = (id: string) => {
+    showConfirm(
+      "Confirmar exclusão",
+      "Tem certeza que deseja deletar esta ração?",
+      async () => {
+        try {
+          setLoading(true);
+          await deleteDogRation(id);
+          setRations((prev) =>
+            prev.filter((item) => String(item.id) !== String(id)),
+          );
+          showAlert("success", "Sucesso", "Ração deletada com sucesso.");
+        } catch (error) {
+          console.error("Erro ao deletar ração", error);
+          showAlert(
+            "error",
+            "Erro ao deletar ração",
+            "Não foi possível remover a ração. Tente novamente.",
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      { confirmText: "Deletar" },
+    );
   };
 
   useFocusEffect(
@@ -129,18 +219,6 @@ export const RationScreen = () => {
       loadingRations();
     }, []),
   );
-
-  const rationPercent = (totalValue: number, currentValue: number) => {
-    if (!totalValue || totalValue === 0) return 0;
-    const percent = (currentValue / totalValue) * 100;
-    return Math.min(Math.max(percent, 0), 100);
-  };
-
-  const getStatusStyle = (percent: number) => {
-    if (percent > 60) return styles.currentRationNormalView;
-    if (percent < 25) return styles.currentRationLowView;
-    return styles.currentRationWarningView;
-  };
 
   const handleToCreateRationScreen = () => {
     navigation.navigate(SCREENS.CREATE_RATIONS_SCREEN);
@@ -156,6 +234,36 @@ export const RationScreen = () => {
     setOpenDecreaseRationForm(true);
   };
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const totalDailyConsumptionAll = Object.values(estimates).reduce(
+    (sum, e) => sum + (e.totalDailyConsumptionKg ?? e.dailyConsumptionKg ?? 0),
+    0,
+  );
+
+  const pendingBatchRations = rations.filter((r) => {
+    const est = estimates[String(r.id)];
+    const dailyKg =
+      est?.totalDailyConsumptionKg ?? est?.dailyConsumptionKg ?? 0;
+    const isAppliedToday = Boolean(
+      est?.dailyDeductionAppliedToday ||
+        (r.lastDailyDeductionDate && r.lastDailyDeductionDate === todayStr),
+    );
+    return dailyKg > 0 && !isAppliedToday;
+  });
+
+  const allDeductedToday =
+    rations.length > 0 &&
+    rations.some((r) => {
+      const est = estimates[String(r.id)];
+      return (
+        (est?.totalDailyConsumptionKg ?? est?.dailyConsumptionKg ?? 0) > 0
+      );
+    }) &&
+    pendingBatchRations.length === 0;
+
+
+
   return (
     <View style={styles.container}>
       {loading ? (
@@ -164,6 +272,13 @@ export const RationScreen = () => {
         </View>
       ) : (
         <View style={styles.flatListContainer}>
+          <RationSummaryCards
+            totalDailyConsumptionAll={totalDailyConsumptionAll}
+            allDeductedToday={allDeductedToday}
+            pendingBatchCount={pendingBatchRations.length}
+            onRequestBatchDeduction={handleRequestBatchDeduction}
+          />
+
           <FlatList
             data={rations}
             keyExtractor={(item) => String(item.id)}
@@ -173,156 +288,75 @@ export const RationScreen = () => {
                 <Text style={styles.emptyText}>Nenhuma ração encontrada.</Text>
               </View>
             }
-            renderItem={({ item }) => {
-              const percent = rationPercent(
-                item.totalRationQuantity,
-                item.currentRationQuantity
-              );
+            renderItem={({ item }) => (
+              <RationItemCard
+                item={item}
+                estimate={estimates[String(item.id)]}
+                todayStr={todayStr}
+                onPressDetails={() =>
+                  navigation.navigate(SCREENS.RATION_DETAILS_SCREEN, {
+                    ration: item,
+                  })
+                }
+                onRequestDailyDeduction={() =>
+                  handleRequestDailyDeduction(item)
+                }
+                onIncrease={() => handleIncreaseRation(String(item.id))}
+                onDecrease={() => handleDecreaseRation(String(item.id))}
+                onDelete={() => confirmDeleteRation(String(item.id))}
+              />
+            )}
+          />
 
-              return (
-                <TouchableOpacity
-                  onPress={() =>
-                    navigation.navigate(SCREENS.RATION_DETAILS_SCREEN, {
-                      ration: item,
-                    })
-                  }
-                >
-                  <View style={styles.cardContainer}>
-                    <Card>
-                      <View style={styles.rowContainer}>
-                        <View style={styles.leftColumn}>
-                          <View style={styles.iconWrapper}>
-                            <FontAwesomeFreeSolid
-                              name="box-open"
-                              size={theme.typography.fontSize.xl}
-                              color={theme.colors.primary}
-                            />
-                          </View>
-                        </View>
-                        <View style={styles.infoContainer}>
-                          <View style={styles.cardHeader}>
-                            <Text style={styles.title}>{item.name}</Text>
-                          </View>
-                          <Text style={styles.paragraph}>
-                            Tipo:{" "}
-                            {item.rationType === ERATION_STATUS.NORMAL
-                              ? "Normal"
-                              : item.rationType === ERATION_STATUS.SPECIAL
-                                ? "Especial"
-                                : "Filhote"}
-                          </Text>
+          <TouchableOpacity
+            style={styles.floatingButton}
+            onPress={handleToCreateRationScreen}
+            activeOpacity={0.8}
+          >
+            <FontAwesomeFreeSolid
+              name="add"
+              size={20}
+              color={theme.colors.accent}
+            />
+          </TouchableOpacity>
 
-                          <Text style={styles.paragraph}>
-                            Estoque: {item.currentRationQuantity} Kg
-                          </Text>
-
-                          <View
-                            style={[
-                              styles.statusBar,
-                              getStatusStyle(percent),
-                              { width: `${percent}%` },
-                            ]}
-                          />
-                        </View>
-                      </View>
-
-                      <View
-                        style={[
-                          styles.rowContainer,
-                          styles.actionButtonsContainer,
-                        ]}
-                      >
-                        <Button
-                          onPress={() => handleIncreaseRation(String(item.id))}
-                          variant="primary"
-                        >
-                          <FontAwesomeFreeSolid
-                            name="add"
-                            size={8}
-                            color={theme.colors.accent}
-                          />
-                        </Button>
-
-                        <Button
-                          onPress={() => handleDecreaseRation(String(item.id))}
-                          variant="primary"
-                        >
-                          <FontAwesomeFreeSolid
-                            name="minus"
-                            size={8}
-                            color={theme.colors.accent}
-                          />
-                        </Button>
-
-                        <Button
-                          onPress={() => confirmDeleteRation(String(item.id))}
-                          variant="warning"
-                        >
-                          <FontAwesomeFreeSolid
-                            name="trash-can"
-                            size={8}
-                            color={theme.colors.accent}
-                          />
-                        </Button>
-                      </View>
-                    </Card>
-                  </View>
-                </TouchableOpacity>
+          <EditRationFormComponent
+            isVisible={openIncreaseRationForm}
+            onClose={() => setOpenIncreaseRationForm(false)}
+            rationId={rationToUpdateId}
+            onShowAlert={showAlert}
+            onSuccess={() => {
+              loadingRations();
+              showAlert(
+                "success",
+                "Sucesso",
+                "Estoque atualizado com sucesso.",
               );
             }}
+            text="Adicionar Ração"
+            type="Increase"
           />
+
+          <EditRationFormComponent
+            isVisible={openDecreaseRationForm}
+            onClose={() => setOpenDecreaseRationForm(false)}
+            rationId={rationToUpdateId}
+            onShowAlert={showAlert}
+            onSuccess={() => {
+              loadingRations();
+              showAlert(
+                "success",
+                "Sucesso",
+                "Baixa realizada com sucesso.",
+              );
+            }}
+            text="Remover Ração"
+            type="Decrease"
+          />
+
+          <AlertModal />
         </View>
       )}
-
-      <Button text="+" onPress={handleToCreateRationScreen} variant="FAB" />
-
-      {alertData.visible && (
-        <CustomAlertComponent
-          visible={alertData.visible}
-          variant={alertData.variant}
-          title={alertData.title}
-          message={alertData.message}
-          onClose={() => {
-            closeAlert();
-            setRationToDeleteId(null);
-          }}
-          onConfirm={rationToDeleteId ? handleDeleteRation : undefined}
-          confirmText="Deletar"
-          cancelText="Cancelar"
-        />
-      )}
-
-<EditRationFormComponent
-        isVisible={openIncreaseRationForm}
-        type="Increase"
-        text="Adicionar Ração"
-        rationId={rationToUpdateId}
-        onShowAlert={showAlert} 
-        onSuccess={() => {
-          loadingRations();
-          showAlert("success", "Sucesso", "Estoque adicionado com sucesso.");
-        }}
-        onClose={() => {
-          setOpenIncreaseRationForm(false);
-          setRationToUpdateId(null);
-        }}
-      />
-
-      <EditRationFormComponent
-        isVisible={openDecreaseRationForm}
-        type="Decrease"
-        text="Retirar Ração"
-        rationId={rationToUpdateId}
-        onShowAlert={showAlert} 
-        onSuccess={() => {
-          loadingRations();
-          showAlert("success", "Sucesso", "Estoque reduzido com sucesso.");
-        }}
-        onClose={() => {
-          setOpenDecreaseRationForm(false);
-          setRationToUpdateId(null);
-        }}
-      />
     </View>
   );
 };
@@ -330,91 +364,44 @@ export const RationScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   activityIndicatorContainer: {
-    position: "absolute",
-    width: 100,
-    height: 100,
-    top: "50%",
-    left: "50%",
-    transform: [{ translateX: -50 }, { translateY: -50 }],
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   flatListContainer: {
-    paddingVertical: 12,
     flex: 1,
-    width: "90%",
-    alignSelf: "center",
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   flatListContent: {
-    flexGrow: 1,
-    paddingTop: 12,
-    paddingBottom: 100,
-  },
-  cardHeader: {},
-  cardContainer: {
-    paddingVertical: 8,
-  },
-  infoContainer: {
-    gap: 4,
-    paddingLeft: 24,
-    flex: 1,
-  },
-  rowContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  actionButtonsContainer: {
-    alignSelf: "flex-end",
-    gap: 10,
-    paddingVertical: 8,
-  },
-  iconWrapper: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: 20,
-    height: 50,
-    width: 50,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  leftColumn: {
-    justifyContent: "center",
-    alignItems: "center",
+    paddingBottom: 90,
   },
   emptyContainer: {
-    paddingTop: 40,
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingTop: 60,
   },
   emptyText: {
     fontFamily: theme.typography.fontFamily.medium,
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.text,
-    opacity: 0.6,
-  },
-  title: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontSize: theme.typography.fontSize.lg,
-    color: theme.colors.text,
-    textAlign: "center",
-  },
-  paragraph: {
-    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.text,
+    color: theme.colors.secondary,
   },
-  currentRationNormalView: {
-    backgroundColor: theme.colors.secondary,
-  },
-  currentRationWarningView: {
-    backgroundColor: theme.colors.warning,
-  },
-  currentRationLowView: {
-    backgroundColor: theme.colors.alert,
-  },
-  statusBar: {
-    marginTop: 5,
-    borderRadius: 25,
-    height: 5,
-    ...theme.shadows.sm,
+  floatingButton: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.full,
+    padding: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    ...theme.shadows.md,
   },
 });
+
+export default RationScreen;

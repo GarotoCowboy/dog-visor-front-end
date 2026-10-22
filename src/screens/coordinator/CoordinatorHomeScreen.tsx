@@ -15,6 +15,14 @@ export const CoordinatorHomeScreen = () => {
     return navigation.navigate(SCREENS.RATIONS_SCREEN);
   };
 
+  const handleToReproductionScreen = () => {
+    return (navigation as any).navigate(SCREENS.REPRODUCTION_MANAGEMENT_SCREEN);
+  };
+
+  const handleToCreateEmployeeScreen = () => {
+    return (navigation as any).navigate(SCREENS.CREATE_EMPLOYEE_SCREEN);
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -31,6 +39,27 @@ export const CoordinatorHomeScreen = () => {
             <Text style={styles.buttonTitle}>Gestão de ração</Text>
             <Text style={styles.buttonSubtitle}>
               Cadastrar, editar e controlar estoque de rações
+            </Text>
+          </Button>
+
+          <Button onPress={handleToReproductionScreen} variant="outline">
+            <Text style={styles.buttonTitle}>Controle Reprodutivo (Cio)</Text>
+            <Text style={styles.buttonSubtitle}>
+              Acompanhar ciclos, cios e previsões das cadelas
+            </Text>
+          </Button>
+
+          <Button onPress={handleToCreateEmployeeScreen} variant="outline">
+            <Text style={styles.buttonTitle}>Cadastrar Funcionário</Text>
+            <Text style={styles.buttonSubtitle}>
+              Adicionar novo membro à equipe de colaboradores
+            </Text>
+          </Button>
+
+          <Button onPress={() => (navigation as any).navigate(SCREENS.TRAINING_MANAGEMENT_SCREEN)} variant="outline">
+            <Text style={styles.buttonTitle}>Gestão de Treinamento</Text>
+            <Text style={styles.buttonSubtitle}>
+              Acompanhar etapas de treino e evolução dos cães
             </Text>
           </Button>
         </View>
@@ -51,6 +80,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.text,
     marginTop: 6,
@@ -60,6 +90,7 @@ const styles = StyleSheet.create({
   },
   buttonTitle: {
     fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.primary,
   },

@@ -16,26 +16,44 @@ export const TipsCardsComponent = () => {
 
   useFocusEffect(
     useCallback(() => {
+      let isMounted = true;
+
       const fetchCounts = async () => {
         try {
-          setIsLoading(true); 
-          
-          const [usersTotal, dogsTotal] = await Promise.all([
+          setIsLoading(true);
+
+          const [usersResult, dogsResult] = await Promise.allSettled([
             getUsersCountService(),
-            getDogsCountService()
+            getDogsCountService(),
           ]);
-          
-          setUserCount(usersTotal); 
-          setDogCount(dogsTotal);
-          
+
+          if (isMounted) {
+            if (usersResult.status === "fulfilled") {
+              setUserCount(usersResult.value);
+            } else {
+              console.error("Erro ao buscar quantidade de colaboradores:", usersResult.reason);
+            }
+
+            if (dogsResult.status === "fulfilled") {
+              setDogCount(dogsResult.value);
+            } else {
+              console.error("Erro ao buscar quantidade de cães:", dogsResult.reason);
+            }
+          }
         } catch (error) {
           console.error("Erro ao buscar quantidade para os cards:", error);
         } finally {
-          setIsLoading(false); 
+          if (isMounted) {
+            setIsLoading(false);
+          }
         }
       };
 
       fetchCounts();
+
+      return () => {
+        isMounted = false;
+      };
     }, [])
   );
 
@@ -43,52 +61,96 @@ export const TipsCardsComponent = () => {
     navigation.navigate(SCREENS.COLLABORATORS_LIST_SCREEN);
   };
 
+  const handleDogsPress = () => {
+    navigation.navigate(SCREENS.DOG_SCREEN as any);
+  };
+
   return (
     <View>
       <View style={styles.cardContainer}>
-        
-        <TouchableOpacity style={styles.cardWrapper} onPress={handleCardPress} activeOpacity={0.8}>
-          <Card>
+        <TouchableOpacity
+          style={styles.cardWrapper}
+          onPress={handleCardPress}
+          activeOpacity={0.8}
+        >
+          <Card style={styles.card}>
             <View style={styles.cardContent}>
-              <Text style={styles.title}>Colaboradores</Text>
-              {isLoading ? (
-                 <ActivityIndicator size="small" color={theme.colors.accent} style={styles.loader} />
-              ) : (
-                 <Text style={styles.countText}>{userCount}</Text>
-              )}
+              <View style={styles.titleContainer}>
+                <Text style={styles.title} numberOfLines={2}>
+                  Colaboradores Ativos
+                </Text>
+              </View>
+              <View style={styles.valueContainer}>
+                {isLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.accent}
+                    style={styles.loader}
+                  />
+                ) : (
+                  <Text style={styles.countText}>{userCount}</Text>
+                )}
+              </View>
+            </View>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.cardWrapper}
+          onPress={handleDogsPress}
+          activeOpacity={0.8}
+        >
+          <Card style={styles.card}>
+            <View style={styles.cardContent}>
+              <View style={styles.titleContainer}>
+                <Text style={styles.title} numberOfLines={2}>
+                  Cães
+                </Text>
+              </View>
+              <View style={styles.valueContainer}>
+                {isLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.accent}
+                    style={styles.loader}
+                  />
+                ) : (
+                  <Text style={styles.countText}>{dogCount}</Text>
+                )}
+              </View>
             </View>
           </Card>
         </TouchableOpacity>
 
         <View style={styles.cardWrapper}>
-          <Card>
+          <Card style={styles.card}>
             <View style={styles.cardContent}>
-              <Text style={styles.title}>Cães</Text>
-              {isLoading ? (
-                 <ActivityIndicator size="small" color={theme.colors.accent} style={styles.loader} />
-              ) : (
-                 <Text style={styles.countText}>{dogCount}</Text>
-              )}
-            </View>
-          </Card>
-        </View>
-        
-        <View style={styles.cardWrapper}>
-          <Card>
-            <View style={styles.cardContent}>
-              <Text style={styles.title}>Outro</Text>
-            </View>
-          </Card>
-        </View>
-        
-        <View style={styles.cardWrapper}>
-          <Card>
-            <View style={styles.cardContent}>
-              <Text style={styles.title}>Outro</Text>
+              <View style={styles.titleContainer}>
+                <Text style={styles.title} numberOfLines={2}>
+                  Outro
+                </Text>
+              </View>
+              <View style={styles.valueContainer}>
+                <Text style={styles.placeholderText}>—</Text>
+              </View>
             </View>
           </Card>
         </View>
 
+        <View style={styles.cardWrapper}>
+          <Card style={styles.card}>
+            <View style={styles.cardContent}>
+              <View style={styles.titleContainer}>
+                <Text style={styles.title} numberOfLines={2}>
+                  Outro
+                </Text>
+              </View>
+              <View style={styles.valueContainer}>
+                <Text style={styles.placeholderText}>—</Text>
+              </View>
+            </View>
+          </Card>
+        </View>
       </View>
     </View>
   );
@@ -104,24 +166,45 @@ const styles = StyleSheet.create({
   cardWrapper: {
     width: "48%",
   },
+  card: {
+    marginVertical: 0,
+    minHeight: 116,
+    padding: 12,
+    justifyContent: "center",
+  },
   cardContent: {
     alignItems: "center",
+    justifyContent: "space-between",
+    flex: 1,
+  },
+  titleContainer: {
+    minHeight: 34,
     justifyContent: "center",
-    paddingVertical: 8,
+    alignItems: "center",
   },
   title: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#333",
+    textAlign: "center",
+    lineHeight: 17,
+  },
+  valueContainer: {
+    minHeight: 38,
+    justifyContent: "center",
+    alignItems: "center",
   },
   countText: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "bold",
-    marginTop: 8,
     color: "#000",
   },
+  placeholderText: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: "#aaa",
+  },
   loader: {
-    marginTop: 12,
-    marginBottom: 4,
-  }
+    marginVertical: 4,
+  },
 });
