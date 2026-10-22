@@ -2,10 +2,7 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
-  Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,9 +11,6 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import FontAwesomeFreeSolid from "@react-native-vector-icons/fontawesome-free-solid";
 import MaterialDesignIcons from "@react-native-vector-icons/material-design-icons";
-import DateTimePicker, {
-  DateTimePickerChangeEvent,
-} from "@react-native-community/datetimepicker";
 
 import { theme } from "../../../theme/theme";
 import {
@@ -25,14 +19,15 @@ import {
   listDogsService,
   listMedicationsService,
 } from "../../service/api";
-import { Card } from "../../shared/components/CardComponent";
-import { Button } from "../../shared/components/ButtonComponent";
 import FormComponent from "../../shared/components/FormComponent";
-import { CustomAlertComponent } from "../../shared/components/CustomAlertComponent";
+import { useAlert } from "../../hooks/useAlert";
 import { IDogResponse } from "../../types/Dog";
 import { IMedicationResponse } from "../../types/Medication";
+import { MedicationItemCard } from "./components/medications/MedicationItemCard";
+import { CreateMedicationModal } from "./components/medications/CreateMedicationModal";
 
 export const MedicationManagementScreen = () => {
+  const { showAlert, showConfirm, AlertModal } = useAlert();
   const [medications, setMedications] = useState<IMedicationResponse[]>([]);
   const [dogs, setDogs] = useState<IDogResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,34 +37,6 @@ export const MedicationManagementScreen = () => {
   // Modal de Criação de Medicamento
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [dogsName, setDogsName] = useState("");
-  const [prescription, setPrescription] = useState("");
-  const [limitDate, setLimitDate] = useState<Date>(
-    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Padrão 7 dias à frente
-  );
-  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
-
-  // Alerta customizado
-  const [alertConfig, setAlertConfig] = useState<{
-    visible: boolean;
-    variant: "success" | "error" | "warning";
-    title: string;
-    message: string;
-  }>({
-    visible: false,
-    variant: "success",
-    title: "",
-    message: "",
-  });
-
-  // Modal de confirmação para excluir
-  const [deleteModal, setDeleteModal] = useState<{
-    visible: boolean;
-    item: IMedicationResponse | null;
-  }>({
-    visible: false,
-    item: null,
-  });
 
   const loadData = async () => {
     try {
@@ -104,92 +71,83 @@ export const MedicationManagementScreen = () => {
     loadData();
   };
 
-  const handleCreateMedication = async () => {
-    if (!dogsName.trim()) {
-      setAlertConfig({
-        visible: true,
-        variant: "warning",
-        title: "Nome do Cão",
-        message: "Por favor, selecione ou informe o nome do cão.",
-      });
-      return;
-    }
-
-    if (!prescription.trim()) {
-      setAlertConfig({
-        visible: true,
-        variant: "warning",
-        title: "Prescrição Obrigatória",
-        message: "Por favor, informe a posologia / prescrição do medicamento.",
-      });
-      return;
-    }
+  const handleCreateMedication = async (payload: {
+    dogsName: string;
+    prescription: string;
+    limitDate: Date;
+  }) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const formattedDate = `${payload.limitDate.getFullYear()}-${pad(
+      payload.limitDate.getMonth() + 1,
+    )}-${pad(payload.limitDate.getDate())}`;
 
     try {
       setSubmitting(true);
-      const formattedDate = limitDate.toISOString().split("T")[0]; // "YYYY-MM-DD"
-
       const newMed = await createMedicationService({
-        dogsName: dogsName.trim(),
-        prescription: prescription.trim(),
+        dogsName: payload.dogsName,
+        prescription: payload.prescription,
         limitDate: formattedDate,
       });
 
-      setMedications((prev) => [newMed, ...prev]);
-      setIsModalOpen(false);
-      setDogsName("");
-      setPrescription("");
+      if (newMed) {
+        setMedications((prev) => [newMed, ...prev]);
+      } else {
+        await loadData();
+      }
 
-      setAlertConfig({
-        visible: true,
-        variant: "success",
-        title: "Medicamento Cadastrado",
-        message: "A prescrição de medicamento foi cadastrada com sucesso!",
-      });
+      setIsModalOpen(false);
+
+      showAlert(
+        "success",
+        "Sucesso",
+        "Prescrição cadastrada e publicada no mural!",
+      );
     } catch (err: any) {
-      console.log("Erro ao criar medicamento:", err);
-      setAlertConfig({
-        visible: true,
-        variant: "error",
-        title: "Erro ao Cadastrar",
-        message:
-          err.response?.data?.message ||
+      console.log("Erro ao salvar medicamento:", err);
+      showAlert(
+        "error",
+        "Erro ao Cadastrar",
+        err?.response?.data?.message ||
           "Não foi possível salvar o medicamento. Tente novamente.",
-      });
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleRequestDelete = (item: IMedicationResponse) => {
-    setDeleteModal({
-      visible: true,
-      item,
-    });
+    showConfirm(
+      "Excluir Prescrição",
+      `Deseja realmente excluir a prescrição para o cão "${item.dogsName}"?`,
+      async () => {
+        if (!item?.id) return;
+
+        try {
+          setLoading(true);
+          await deleteMedicationService(item.id);
+          setMedications((prev) => prev.filter((m) => m.id !== item.id));
+
+          showAlert(
+            "success",
+            "Removido",
+            "Prescrição de medicamento excluída com sucesso.",
+          );
+        } catch (err: any) {
+          console.log("Erro ao excluir medicamento:", err);
+          showAlert(
+            "error",
+            "Erro",
+            err?.response?.data?.message ||
+              "Não foi possível excluir a prescrição.",
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      "Excluir",
+      "Cancelar",
+    );
   };
-
-  const handleConfirmDelete = async () => {
-    const item = deleteModal.item;
-    setDeleteModal({ visible: false, item: null });
-
-    if (!item || !item.id) return;
-
-    // Atualização otimista
-    setMedications((prev) => prev.filter((m) => m.id !== item.id));
-
-    try {
-      await deleteMedicationService(item.id);
-    } catch (err) {
-      console.log("Erro ao deletar medicamento:", err);
-      loadData();
-    }
-  };
-
-  // Opções para o dropdown de cães
-  const dogOptions = dogs.map((dog) => ({
-    label: dog.name,
-    value: dog.name,
-  }));
 
   const filteredMedications = medications.filter((item) => {
     const term = search.toLowerCase().trim();
@@ -275,105 +233,13 @@ export const MedicationManagementScreen = () => {
               colors={[theme.colors.primary]}
             />
           }
-          renderItem={({ item }) => {
-            const limDate = parseLocalDate(item.limitDate);
-            const isExpired = limDate
-              ? limDate.getTime() < new Date().setHours(0, 0, 0, 0)
-              : false;
-
-            return (
-              <View style={styles.cardWrapper}>
-                <Card>
-                  <View
-                    style={[
-                      styles.cardInnerContent,
-                      isExpired && styles.cardExpiredHighlight,
-                    ]}
-                  >
-                    {/* BARRA LATERAL */}
-                    <View
-                      style={[
-                        styles.colorBar,
-                        {
-                          backgroundColor: isExpired
-                            ? "#D32F2F"
-                            : theme.colors.secondary,
-                        },
-                      ]}
-                    />
-
-                    <View style={styles.cardBody}>
-                      {/* TOPO: NOME DO CÃO + BOTÃO EXCLUIR */}
-                      <View style={styles.cardHeader}>
-                        <View style={styles.dogNameRow}>
-                          <FontAwesomeFreeSolid
-                            name="dog"
-                            size={16}
-                            color={theme.colors.primary}
-                          />
-                          <Text style={styles.dogNameText}>
-                            {item.dogsName}
-                          </Text>
-                        </View>
-
-                        <TouchableOpacity
-                          style={styles.deleteButton}
-                          onPress={() => handleRequestDelete(item)}
-                          activeOpacity={0.7}
-                        >
-                          <MaterialDesignIcons
-                            name="trash-can-outline"
-                            size={18}
-                            color="#D32F2F"
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* PRESCRIÇÃO */}
-                      <View style={styles.prescriptionBox}>
-                        <FontAwesomeFreeSolid
-                          name="pills"
-                          size={13}
-                          color={theme.colors.secondary}
-                          style={{ marginTop: 2 }}
-                        />
-                        <Text style={styles.prescriptionText}>
-                          {item.prescription}
-                        </Text>
-                      </View>
-
-                      {/* PRAZO LIMITE */}
-                      {limDate && (
-                        <View
-                          style={[
-                            styles.limitDateRow,
-                            isExpired && styles.limitDateRowExpired,
-                          ]}
-                        >
-                          <MaterialDesignIcons
-                            name={isExpired ? "alert-circle" : "calendar-clock"}
-                            size={14}
-                            color={isExpired ? "#D32F2F" : theme.colors.text}
-                          />
-                          <Text
-                            style={[
-                              styles.limitDateText,
-                              isExpired && styles.limitDateTextExpired,
-                            ]}
-                          >
-                            {isExpired
-                              ? "Tratamento expirado em: "
-                              : "Administrar até: "}
-                            {`${limDate.getDate()}/${limDate.getMonth() + 1}/${limDate.getFullYear()}`}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </Card>
-              </View>
-            );
-          }}
+          renderItem={({ item }) => (
+            <MedicationItemCard
+              item={item}
+              onRequestDelete={handleRequestDelete}
+              parseLocalDate={parseLocalDate}
+            />
+          )}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <MaterialDesignIcons
@@ -396,144 +262,19 @@ export const MedicationManagementScreen = () => {
       )}
 
       {/* MODAL DE CRIAÇÃO DE MEDICAMENTO */}
-      <Modal
+      <CreateMedicationModal
         visible={isModalOpen}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsModalOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Prescrever Medicamento</Text>
-              <Pressable
-                onPress={() => setIsModalOpen(false)}
-                style={styles.modalCloseButton}
-              >
-                <MaterialDesignIcons
-                  name="close"
-                  size={22}
-                  color={theme.colors.text}
-                />
-              </Pressable>
-            </View>
-
-            <ScrollView
-              contentContainerStyle={styles.modalBody}
-              keyboardShouldPersistTaps="handled"
-            >
-              {/* SELEÇÃO DO CÃO */}
-              {dogOptions.length > 0 ? (
-                <FormComponent
-                  variant="dropdown"
-                  text="Cão *"
-                  placeholder="Selecione o cão"
-                  value={dogsName}
-                  onChangeText={setDogsName}
-                  options={dogOptions}
-                  onSelect={(val) => setDogsName(val)}
-                  searchable
-                  searchPlaceholder="Pesquisar cão..."
-                />
-              ) : (
-                <FormComponent
-                  text="Nome do Cão *"
-                  placeholder="Ex: Thor, Rex, Luna..."
-                  value={dogsName}
-                  onChangeText={setDogsName}
-                />
-              )}
-
-              {/* PRESCRIÇÃO */}
-              <FormComponent
-                text="Prescrição / Posologia *"
-                placeholder="Ex: Amoxicilina 250mg a cada 12h durante 7 dias"
-                value={prescription}
-                onChangeText={setPrescription}
-                multiline
-                numberOfLines={3}
-              />
-
-              {/* DATA LIMITE */}
-              <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>
-                  Data Limite de Administração *
-                </Text>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => setIsDatePickerVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <MaterialDesignIcons
-                    name="calendar-month"
-                    size={20}
-                    color={theme.colors.primary}
-                  />
-                  <Text style={styles.pickerButtonText}>
-                    {`${limitDate.getDate()}/${limitDate.getMonth() + 1}/${limitDate.getFullYear()}`}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {isDatePickerVisible && (
-                <DateTimePicker
-                  value={limitDate}
-                  mode="date"
-                  display="default"
-                  minimumDate={new Date()}
-                  onChange={(_e: DateTimePickerChangeEvent, date?: Date) => {
-                    setIsDatePickerVisible(false);
-                    if (date) setLimitDate(date);
-                  }}
-                />
-              )}
-
-              {/* BOTÕES */}
-              <View style={styles.modalButtonsContainer}>
-                <Button
-                  text="Cancelar"
-                  variant="outline"
-                  onPress={() => setIsModalOpen(false)}
-                />
-                <Button
-                  text={submitting ? "Salvando..." : "Salvar Prescrição"}
-                  onPress={handleCreateMedication}
-                  disabled={submitting}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateMedication}
+        submitting={submitting}
+        dogs={dogs}
+        onValidationAlert={(title, message) =>
+          showAlert("warning", title, message)
+        }
+      />
 
       {/* ALERTA CUSTOMIZADO */}
-      <CustomAlertComponent
-        visible={alertConfig.visible}
-        variant={alertConfig.variant}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        onConfirm={() =>
-          setAlertConfig((prev) => ({ ...prev, visible: false }))
-        }
-        onClose={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}
-      />
-
-      {/* CONFIRMAÇÃO DE EXCLUSÃO */}
-      <CustomAlertComponent
-        visible={deleteModal.visible}
-        variant="warning"
-        title="Excluir Prescrição"
-        message={
-          deleteModal.item
-            ? `Deseja realmente excluir a prescrição para o cão "${deleteModal.item.dogsName}"?`
-            : "Deseja realmente excluir esta prescrição?"
-        }
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        showCancel={true}
-        onConfirm={handleConfirmDelete}
-        onClose={() => setDeleteModal({ visible: false, item: null })}
-      />
+      <AlertModal />
     </View>
   );
 };
@@ -558,201 +299,65 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: theme.borderRadius.md,
   },
   newButtonText: {
-    color: theme.colors.white,
+    fontSize: theme.typography.fontSize.xs,
     fontFamily: theme.typography.fontFamily.bold,
-    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.white,
   },
   summaryRow: {
     paddingHorizontal: 16,
     paddingVertical: 6,
   },
   summaryText: {
-    fontFamily: theme.typography.fontFamily.semiBold,
     fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.text,
-    opacity: 0.6,
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.secondary,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 30,
     gap: 12,
-  },
-  cardWrapper: {
-    width: "100%",
-  },
-  cardInnerContent: {
-    flexDirection: "row",
-    overflow: "hidden",
-  },
-  cardExpiredHighlight: {
-    backgroundColor: "#FFF8F8",
-    borderWidth: 1,
-    borderColor: "#FFCDD2",
-    borderRadius: theme.borderRadius.md,
-  },
-  colorBar: {
-    width: 6,
-    borderTopLeftRadius: theme.borderRadius.md,
-    borderBottomLeftRadius: theme.borderRadius.md,
-  },
-  cardBody: {
-    flex: 1,
-    padding: 12,
-    gap: 8,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  dogNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  dogNameText: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.text,
-  },
-  deleteButton: {
-    padding: 4,
-  },
-  prescriptionBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: `${theme.colors.secondary}10`,
-    padding: 10,
-    borderRadius: 6,
-  },
-  prescriptionText: {
-    flex: 1,
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.text,
-    lineHeight: 18,
-  },
-  limitDateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  limitDateRowExpired: {
-    backgroundColor: "#FFEBEE",
-    padding: 6,
-    borderRadius: 4,
-  },
-  limitDateText: {
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: 11,
-    color: theme.colors.text,
-    opacity: 0.7,
-  },
-  limitDateTextExpired: {
-    color: "#C62828",
-    fontFamily: theme.typography.fontFamily.bold,
-    opacity: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContainer: {
-    backgroundColor: theme.colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "85%",
-    paddingBottom: 24,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  modalTitle: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontSize: theme.typography.fontSize.lg,
-    color: theme.colors.text,
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  modalBody: {
-    padding: 20,
-    gap: 16,
-  },
-  fieldSection: {
-    gap: 6,
-  },
-  fieldLabel: {
-    fontFamily: theme.typography.fontFamily.medium,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.text,
-  },
-  pickerButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: theme.colors.background,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  pickerButtonText: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.text,
-  },
-  modalButtonsContainer: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
   },
   loadingContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    paddingTop: 60,
+    gap: 12,
   },
   loadingText: {
-    fontFamily: theme.typography.fontFamily.medium,
     fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.text,
-    opacity: 0.7,
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.secondary,
   },
   emptyBox: {
-    paddingVertical: 60,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 24,
     gap: 8,
   },
   emptyTitle: {
-    fontFamily: theme.typography.fontFamily.bold,
     fontSize: theme.typography.fontSize.base,
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.text,
+    textAlign: "center",
   },
   emptySubtitle: {
-    fontFamily: theme.typography.fontFamily.regular,
     fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.text,
-    opacity: 0.6,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.secondary,
     textAlign: "center",
-    paddingHorizontal: 32,
+    lineHeight: 18,
   },
 });
 
 export default MedicationManagementScreen;
-

@@ -111,23 +111,27 @@ const styles = StyleSheet.create({
   },
   textTitle: {
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.lg,
     color: theme.colors.text,
   },
   textsubTitle: {
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.text,
     opacity: 0.6,
   },
   textParagrph: {
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.xs,
     color: theme.colors.text,
     opacity: 0.4,
   },
   tipText: {
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.primary,
   },

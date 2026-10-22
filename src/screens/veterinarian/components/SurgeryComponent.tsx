@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { getDogsService } from "../../../service/api";
 import { femaleDogIcons, maleDogIcons } from "../../../consts/dogIcons";
 import { ICreateDogConsultationRequest } from "../../../types/DogHealth";
-import FormComponent from "../../../shared/components/FormComponent";
+import FormComponent, { DogPickerField } from "../../../shared/components/FormComponent";
 import { Card } from "../../../shared/components/CardComponent";
 
 const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
@@ -123,39 +123,21 @@ export const SurgeyComponent = () => {
         <Card>
             <View style={styles.viewCardContainer}>
 
-        <FormComponent
-          variant="dropdown"
-          text="Cao"
-          placeholder={loading ? "Carregando caes..." : "Selecione o cao"}
-          value={formData.dogsName}
-          onChangeText={() => {}}
-          options={dogOptions}
-          onSelect={handleSelectDog}
-          searchable
-          searchPlaceholder="Pesquisar cao pelo nome ou raca"
-          emptyOptionsMessage="Nenhum cao encontrado"
+        <DogPickerField
+          label="Cão *"
+          placeholder={loading ? "Carregando cães..." : "Selecione o cão..."}
+          dogs={dogs}
+          selectedDog={selectedDog}
+          onSelectDog={(dog) => {
+            setFormData((prev) => ({
+              ...prev,
+              dogId: String(dog.ID),
+              dogsName: dog.name,
+              dogsBreed: dog.race ?? "",
+            }));
+          }}
+          required
         />
-        
-
-        {selectedDog ? (
-          <View style={styles.selectedDogContainer}>
-            {selectedDogImage ? (
-              <Image source={selectedDogImage} style={styles.dogImage} />
-            ) : (
-              <View style={[styles.dogImage, styles.placeholderImage]} />
-            )}
-            <View style={styles.selectedDogTextContainer}>
-              <Text style={styles.selectedDogName}>{selectedDog.name}</Text>
-              <Text style={styles.selectedDogBreed}>
-                {selectedDog.race
-                  ? DogRaceLabel[selectedDog.race]
-                  : "Nao informado"}
-              </Text>
-            </View>
-          </View>
-        ) : null}
-
-
             </View>
 
         </Card>

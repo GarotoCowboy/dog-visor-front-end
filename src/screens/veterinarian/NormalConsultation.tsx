@@ -12,14 +12,14 @@ import {
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { theme } from "../../../theme/theme";
 import { Card } from "../../shared/components/CardComponent";
-import FormComponent from "../../shared/components/FormComponent";
+import FormComponent, { DogPickerField } from "../../shared/components/FormComponent";
 import { ICreateDogConsultationRequest } from "../../types/DogHealth";
 import { Button } from "../../shared/components/ButtonComponent";
 import { DogRaceLabel, IDogResponse } from "../../types/Dog";
 import { getDogsService, postDogConsultation } from "../../service/api";
-import { CustomAlertComponent } from "../../shared/components/CustomAlertComponent";
 import { femaleDogIcons, maleDogIcons } from "../../consts/dogIcons";
 import { SCREENS } from "../../consts/screens";
+import { useAlert } from "../../hooks/useAlert";
 
 const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
   (acc, item) => {
@@ -37,21 +37,13 @@ const buildConsultationCreatedAt = (date: string, time: string) => {
   return `${date}T${time}:00`;
 };
 
-type AlertVariant = "warning" | "error" | "success";
-
-type AlertData = {
-  visible: boolean;
-  variant: AlertVariant;
-  title: string;
-  message: string;
-};
-
 export const NormalConsultationScreen = ({navigation}: any) => {
   const [dogs, setDogs] = useState<IDogResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const { showAlert, AlertModal } = useAlert();
   navigation = useNavigation<any>();
 
   const [formData, setFormData] = useState<ICreateDogConsultationRequest>({
@@ -65,29 +57,6 @@ export const NormalConsultationScreen = ({navigation}: any) => {
 
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-
-  const [alertData, setAlertData] = useState<AlertData>({
-    visible: false,
-    variant: "warning",
-    title: "",
-    message: "",
-  });
-
-  const showAlert = (variant: AlertVariant, title: string, message: string) => {
-    setAlertData({
-      visible: true,
-      variant,
-      title,
-      message,
-    });
-  };
-
-  const closeAlert = () => {
-    setAlertData((prev) => ({
-      ...prev,
-      visible: false,
-    }));
-  };
 
   const verifyValuesIsNotEmpty = () => {
     if (
@@ -238,36 +207,21 @@ export const NormalConsultationScreen = ({navigation}: any) => {
           <View style={styles.cardContainer}>
             <Card>
               <View style={styles.viewCardContainer}>
-                <FormComponent
-                  variant="dropdown"
-                  text="Cao"
-                  placeholder={loading ? "Carregando caes..." : "Selecione o cao"}
-                  value={formData.dogsName}
-                  onChangeText={() => {}}
-                  options={dogOptions}
-                  onSelect={handleSelectDog}
-                  searchable
-                  searchPlaceholder="Pesquisar cao pelo nome ou raca"
-                  emptyOptionsMessage="Nenhum cao encontrado"
+                <DogPickerField
+                  label="Cão *"
+                  placeholder={loading ? "Carregando cães..." : "Selecione o cão da consulta..."}
+                  dogs={dogs}
+                  selectedDog={selectedDog}
+                  onSelectDog={(dog) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      dogId: String(dog.ID),
+                      dogsName: dog.name,
+                      dogsBreed: dog.race ?? "",
+                    }));
+                  }}
+                  required
                 />
-
-                {selectedDog ? (
-                  <View style={styles.selectedDogContainer}>
-                    {selectedDogImage ? (
-                      <Image source={selectedDogImage} style={styles.dogImage} />
-                    ) : (
-                      <View style={[styles.dogImage, styles.placeholderImage]} />
-                    )}
-                    <View style={styles.selectedDogTextContainer}>
-                      <Text style={styles.selectedDogName}>{selectedDog.name}</Text>
-                      <Text style={styles.selectedDogBreed}>
-                        {selectedDog.race
-                          ? DogRaceLabel[selectedDog.race]
-                          : "Nao informado"}
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
 
                 <FormComponent
                   placeholder="Data da Consulta"
@@ -316,7 +270,7 @@ export const NormalConsultationScreen = ({navigation}: any) => {
 
           <View style={styles.buttonContainer}>
             <View style={styles.cancelButton}>
-              <Button text="Cancelar" variant="transparent" onPress={handleBackToVeterinarianScreen} />
+              <Button text="Cancelar" variant="outline" onPress={handleBackToVeterinarianScreen} />
             </View>
             <View style={styles.saveButton}>
               <Button
@@ -335,15 +289,7 @@ export const NormalConsultationScreen = ({navigation}: any) => {
         </View>
       )}
 
-      {alertData.visible && (
-        <CustomAlertComponent
-          visible={alertData.visible}
-          variant={alertData.variant}
-          title={alertData.title}
-          message={alertData.message}
-          onClose={closeAlert}
-        />
-      )}
+      <AlertModal />
     </View>
   );
 };
@@ -417,6 +363,7 @@ const styles = StyleSheet.create({
   },
   title:{
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.lg,
     color: theme.colors.text,
     paddingHorizontal: 24,

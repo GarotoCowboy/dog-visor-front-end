@@ -20,14 +20,20 @@ export const VeterinarianHomeScreen = () => {
     navigation.navigate(SCREENS.MEDICATION_MANAGEMENT_SCREEN);
   };
 
+  const handleToFeedingManagement = () => {
+    navigation.navigate(SCREENS.FEEDING_MANAGEMENT_SCREEN);
+  };
+
+  const handleToReproductionManagement = () => {
+    navigation.navigate(SCREENS.REPRODUCTION_MANAGEMENT_SCREEN);
+  };
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.sectionTitle}>Agenda Veterinária</Text>
-
       <Card>
         <View style={styles.buttonsContainer}>
           {/* 1. EVENTOS */}
@@ -68,7 +74,21 @@ export const VeterinarianHomeScreen = () => {
                 color={theme.colors.primary}
               />
             }
-            onPress={() => {}}
+            onPress={handleToFeedingManagement}
+          />
+
+          {/* 4. CONTROLE REPRODUTIVO */}
+          <Button
+            text="Controle Reprodutivo (Cio)"
+            variant="outline"
+            leftIcon={
+              <FontAwesomeFreeSolid
+                name="calendar-check"
+                size={theme.typography.fontSize.base}
+                color={theme.colors.primary}
+              />
+            }
+            onPress={handleToReproductionManagement}
           />
         </View>
       </Card>
@@ -88,6 +108,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.text,
     marginTop: 4,
