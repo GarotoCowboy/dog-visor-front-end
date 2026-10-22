@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { ReactElement } from "react";
 import { theme } from "../../../theme/theme";
 
@@ -10,6 +10,7 @@ interface IButtonProps {
   leftIcon?: ReactElement;
   rightIcon?: ReactElement;
   variant?: "primary" | "outline" | "transparent" | "warning" | "FAB";
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Button = ({
@@ -20,21 +21,27 @@ export const Button = ({
   leftIcon,
   rightIcon,
   variant = "primary",
+  style,
 }: IButtonProps) => {
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => ({
-        ...styles.buttonContainer,
-        ...(pressed ? styles.buttonPressed : {}),
-        ...(variant === "primary" ? styles.primary : {}),
-        ...(variant === "outline" ? styles.outlined : {}),
-        ...(variant === "outline" && pressed ? styles.outlinedPressed : {}),
-        ...(variant === "transparent" ? styles.transparent : {}),
-        ...(variant === "warning" ? styles.warning : {}),
-        ...(variant === "FAB" ? styles.fab : {}),
-      })}
+      style={({ pressed }) => [
+        styles.buttonContainer,
+        variant === "primary" && styles.primary,
+        variant === "outline" && styles.outlined,
+        variant === "outline" && pressed && !disabled && styles.outlinedPressed,
+        variant === "transparent" && styles.transparent,
+        variant === "warning" && styles.warning,
+        variant === "FAB" && styles.fab,
+        pressed && !disabled && styles.buttonPressed,
+        disabled && styles.disabledContainer,
+        disabled && (variant === "primary" || variant === "warning" || variant === "FAB") && styles.disabledFilled,
+        disabled && variant === "outline" && styles.disabledOutlined,
+        style,
+      ]}
+      accessibilityState={{ disabled }}
     >
       {children}
 
@@ -51,6 +58,11 @@ export const Button = ({
                 ? styles.buttonTextColorSecondary
                 : {}),
               ...(variant === "FAB" ? styles.buttonTextColorPrimary : {}),
+              ...(disabled
+                ? variant === "outline" || variant === "transparent"
+                  ? styles.buttonTextDisabledOnLight
+                  : styles.buttonTextDisabledOnFilled
+                : {}),
             }}
           >
             {text}
@@ -79,8 +91,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   outlined: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.colors.primary,
+    borderRadius: 8,
   },
   transparent: {},
   warning: {
@@ -102,11 +115,27 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.8,
   },
+  disabledContainer: {
+    opacity: 0.6,
+  },
+  disabledFilled: {
+    backgroundColor: "#9CA3AF",
+  },
+  disabledOutlined: {
+    borderColor: "#9CA3AF",
+  },
+  buttonTextDisabledOnFilled: {
+    color: "#F3F4F6",
+  },
+  buttonTextDisabledOnLight: {
+    color: "#9CA3AF",
+  },
   outlinedPressed: {
     backgroundColor: "rgba(0,0,0,0.1)",
   },
   buttonText: {
     fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
     fontSize: theme.typography.fontSize.base,
   },
   buttonTextColorPrimary: {

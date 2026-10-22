@@ -27,20 +27,30 @@ type CustomAlertProps = {
   showCancel?: boolean;
 };
 
-const variantConfig = {
+interface VariantConfigItem {
+  color: string;
+  lightColor: string;
+  buttonColor: string;
+  image: any;
+}
+
+const variantConfig: Record<AlertVariant, VariantConfigItem> = {
   success: {
-    color: theme.colors.statusCompleted,
+    color: theme.colors.primary,
     lightColor: theme.colors.accent,
+    buttonColor: theme.colors.primary,
     image: happyDog,
   },
   error: {
     color: theme.colors.alert,
     lightColor: theme.colors.alertLightColor,
+    buttonColor: theme.colors.alert,
     image: sadDog,
   },
   warning: {
     color: theme.colors.warning,
     lightColor: theme.colors.warningLightColor,
+    buttonColor: theme.colors.warning,
     image: questionDog,
   },
 };
@@ -97,7 +107,10 @@ export const CustomAlertComponent = ({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: config.color }]}
+                style={[
+                  styles.button,
+                  { backgroundColor: config.buttonColor },
+                ]}
                 onPress={handleConfirm}
                 activeOpacity={0.8}
               >
@@ -106,7 +119,13 @@ export const CustomAlertComponent = ({
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: config.color, minWidth: 120 }]}
+              style={[
+                styles.button,
+                {
+                  backgroundColor: config.buttonColor,
+                  minWidth: 120,
+                },
+              ]}
               onPress={handleConfirm}
               activeOpacity={0.8}
             >
@@ -160,14 +179,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+    minWidth: 100,
   },
   cancelButton: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#666",
+    backgroundColor: "#dc2626",
+    borderWidth: 0,
   },
   cancelButtonText: {
-    color: "#333",
+    color: "#ffffff",
     fontWeight: "bold",
   },
   buttonText: {

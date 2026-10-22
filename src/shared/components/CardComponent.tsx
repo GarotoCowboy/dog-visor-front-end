@@ -1,20 +1,15 @@
-import { ReactElement } from "react";
-import { StyleSheet, View } from "react-native";
+import React, { ReactNode } from "react";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { theme } from "../../../theme/theme";
 
-
-interface ICardProps{
-    children: ReactElement | ReactElement[]
+interface ICardProps {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const Card = ({children}: ICardProps) => {
-
-    return(
-        <View style={styles.cardContainer}>
-            {children}
-        </View>
-    );
-}
+export const Card = ({ children, style }: ICardProps) => {
+  return <View style={[styles.cardContainer, style]}>{children}</View>;
+};
 
 const styles = StyleSheet.create({
 cardContainer:{
