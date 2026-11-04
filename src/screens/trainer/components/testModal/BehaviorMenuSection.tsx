@@ -33,6 +33,7 @@ const BehaviorMenuItem: React.FC<BehaviorMenuItemProps> = memo(
       <TouchableOpacity
         style={[
           styles.behaviorMenuButton,
+          !isAnswered && styles.behaviorMenuButtonUnanswered,
           isAnswered && styles.behaviorMenuButtonAnswered,
         ]}
         activeOpacity={0.75}
@@ -41,12 +42,14 @@ const BehaviorMenuItem: React.FC<BehaviorMenuItemProps> = memo(
         <View
           style={[
             styles.volhardMenuNumberCircle,
+            !isAnswered && styles.volhardMenuNumberCircleUnanswered,
             isAnswered && styles.volhardMenuNumberCircleAnswered,
           ]}
         >
           <Text
             style={[
               styles.volhardMenuNumberText,
+              !isAnswered && styles.volhardMenuNumberTextUnanswered,
               isAnswered && styles.volhardMenuNumberTextAnswered,
             ]}
           >
@@ -64,27 +67,34 @@ const BehaviorMenuItem: React.FC<BehaviorMenuItemProps> = memo(
         <View
           style={[
             styles.volhardScoreBadge,
-            isAnswered
-              ? styles.volhardScoreBadgeDone
-              : styles.volhardScoreBadgePending,
+            !isAnswered
+              ? styles.volhardScoreBadgePending
+              : styles.volhardScoreBadgeDone,
           ]}
         >
+          {!isAnswered && (
+            <MaterialDesignIcons
+              name="alert-circle-outline"
+              size={13}
+              color="#C2410C"
+            />
+          )}
           <Text
             numberOfLines={1}
             style={[
               styles.volhardScoreBadgeText,
-              isAnswered
-                ? styles.volhardScoreBadgeTextDone
-                : styles.volhardScoreBadgeTextPending,
+              !isAnswered
+                ? styles.volhardScoreBadgeTextPending
+                : styles.volhardScoreBadgeTextDone,
               { maxWidth: 105 },
             ]}
           >
-            {isAnswered ? selectedLabel : "Avaliar"}
+            {isAnswered ? selectedLabel : "Não feito"}
           </Text>
           <MaterialDesignIcons
             name="chevron-right"
             size={18}
-            color={isAnswered ? "#15803D" : theme.colors.primary}
+            color={!isAnswered ? "#EA580C" : "#15803D"}
           />
         </View>
       </TouchableOpacity>
@@ -98,7 +108,7 @@ interface BehaviorMenuSectionProps {
   completedCount: number;
   filteredItems: IBehaviorItemDefinition[];
   getItemSelectedLabel: (item: IBehaviorItemDefinition) => string | null;
-  onQuickFillUnanswered: () => void;
+  onQuickFillUnanswered?: () => void;
   onOpenItem: (realIndex: number) => void;
 }
 
@@ -109,7 +119,6 @@ export const BehaviorMenuSection: React.FC<BehaviorMenuSectionProps> = memo(
     completedCount,
     filteredItems,
     getItemSelectedLabel,
-    onQuickFillUnanswered,
     onOpenItem,
   }) => {
     return (
@@ -130,7 +139,7 @@ export const BehaviorMenuSection: React.FC<BehaviorMenuSectionProps> = memo(
           </View>
         </View>
 
-        {/* Busca rápida e botão para preencher não marcados */}
+        {/* Busca rápida */}
         <View style={styles.behaviorToolbar}>
           <View style={styles.behaviorSearchBox}>
             <MaterialDesignIcons name="magnify" size={18} color="#9CA3AF" />
@@ -151,20 +160,6 @@ export const BehaviorMenuSection: React.FC<BehaviorMenuSectionProps> = memo(
               </TouchableOpacity>
             )}
           </View>
-
-          <TouchableOpacity
-            style={styles.quickFillButton}
-            onPress={onQuickFillUnanswered}
-          >
-            <MaterialDesignIcons
-              name="check-all"
-              size={16}
-              color={theme.colors.primary}
-            />
-            <Text style={styles.quickFillButtonText}>
-              Marcar restantes como Ausente / Padrão
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.menuButtonsGrid}>
@@ -224,6 +219,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#166534",
   },
+  absentAlertBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  absentAlertBannerText: {
+    flex: 1,
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 11.5,
+    color: "#DC2626",
+  },
   behaviorToolbar: {
     gap: 8,
   },
@@ -250,9 +263,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#F0FDFA",
+    backgroundColor: "#FFF7ED",
     borderWidth: 1,
-    borderColor: "#99F6E4",
+    borderColor: "#FDBA74",
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -261,7 +274,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.bold,
     fontWeight: theme.typography.fontWeight.bold,
     fontSize: 11,
-    color: theme.colors.primary,
+    color: "#C2410C",
   },
   menuButtonsGrid: {
     gap: 8,
@@ -277,9 +290,17 @@ const styles = StyleSheet.create({
     gap: 10,
     ...theme.shadows.sm,
   },
+  behaviorMenuButtonUnanswered: {
+    borderColor: "#FDBA74",
+    backgroundColor: "#FFF7ED",
+  },
   behaviorMenuButtonAnswered: {
     borderColor: "#BBF7D0",
     backgroundColor: "#F7FEE7",
+  },
+  behaviorMenuButtonAbsent: {
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
   },
   volhardMenuNumberCircle: {
     width: 32,
@@ -289,8 +310,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  volhardMenuNumberCircleUnanswered: {
+    backgroundColor: "#FFEDD5",
+  },
   volhardMenuNumberCircleAnswered: {
     backgroundColor: "#DCFCE7",
+  },
+  volhardMenuNumberCircleAbsent: {
+    backgroundColor: "#FEE2E2",
   },
   volhardMenuNumberText: {
     fontFamily: theme.typography.fontFamily.bold,
@@ -298,8 +325,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#4B5563",
   },
+  volhardMenuNumberTextUnanswered: {
+    color: "#C2410C",
+  },
   volhardMenuNumberTextAnswered: {
     color: "#15803D",
+  },
+  volhardMenuNumberTextAbsent: {
+    color: "#DC2626",
   },
   volhardMenuTextCol: {
     flex: 1,
@@ -317,22 +350,38 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     lineHeight: 15,
   },
+  absentWarningRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  absentWarningText: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 10,
+    color: "#DC2626",
+  },
   volhardScoreBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1.5,
   },
   volhardScoreBadgePending: {
-    backgroundColor: "#F9FAFB",
-    borderColor: "#E5E7EB",
+    backgroundColor: "#FFEDD5",
+    borderColor: "#FDBA74",
   },
   volhardScoreBadgeDone: {
     backgroundColor: "#DCFCE7",
     borderColor: "#86EFAC",
+  },
+  volhardScoreBadgeAbsent: {
+    backgroundColor: "#FEE2E2",
+    borderColor: "#FCA5A5",
   },
   volhardScoreBadgeText: {
     fontFamily: theme.typography.fontFamily.bold,
@@ -340,9 +389,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   volhardScoreBadgeTextPending: {
-    color: theme.colors.primary,
+    color: "#C2410C",
   },
   volhardScoreBadgeTextDone: {
     color: "#15803D",
+  },
+  volhardScoreBadgeTextAbsent: {
+    color: "#DC2626",
   },
 });

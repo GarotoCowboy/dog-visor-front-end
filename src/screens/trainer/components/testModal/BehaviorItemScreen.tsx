@@ -320,6 +320,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: "#F0FDF4",
   },
+  checkboxRowSelectedAbsent: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
   checkboxTextWrapper: {
     flex: 1,
     gap: 2,
@@ -334,6 +338,17 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.bold,
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.primary,
+  },
+  checkboxLabelSelectedAbsent: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: "#DC2626",
+  },
+  checkboxAbsentHint: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 11,
+    color: "#DC2626",
   },
   subScreenFooter: {
     flexDirection: "row",

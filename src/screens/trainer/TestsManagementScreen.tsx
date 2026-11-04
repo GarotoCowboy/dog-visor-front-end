@@ -37,27 +37,41 @@ import { formatDogRace, IDogResponse } from "../../types/Dog";
 import {
   createBehaviorTestService,
   createVolhardTestService,
+  deleteBehaviorTestService,
+  deleteVolhardTestService,
   getDogsService,
   getLoggedUserProfileService,
+  getTrainerNamesMapService,
   listBehaviorTestsService,
   listVolhardTestsService,
+  resolveTrainerNameFromMap,
   updateBehaviorTestService,
   updateVolhardTestService,
 } from "../../service/api";
 import {
   enqueueSyncAction,
   getCachedTests,
+  getCachedTrainerId,
+  getCachedTrainerNamesMap,
   getCachedTrainings,
   saveCachedTests,
+  saveCachedTrainerId,
+  saveCachedTrainerNamesMap,
 } from "../../service/trainingOfflineService";
 import { trainingSyncService } from "../../service/trainingSyncService";
 import {
   decodeBehaviorResultProgress,
   decodeVolhardResultProgress,
 } from "./constants/testQuestionsData";
+import { isValidUuid } from "./utils/stagePayloadBuilder";
 
 import { getEmployeeIdentifier } from "../../types/User";
 type TestFilterTab = "PENDING" | "COMPLETED" | "ALL";
+
+const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
+
+const isNonZeroUuid = (val?: string | null): val is string =>
+  Boolean(val) && isValidUuid(val) && val !== ZERO_UUID;
 
 const toIsoDate = (dateStr: string): string => {
   if (!dateStr) {
@@ -95,6 +109,7 @@ export const TestsManagementScreen: React.FC = () => {
     try {
       // 1. Carrega testes do cache local
       const cachedTests = await getCachedTests();
+      const cachedTrainerMap = await getCachedTrainerNamesMap();
       setTests(cachedTests || []);
 
       // 2. Busca cães disponíveis para o modal de cadastro
@@ -130,27 +145,56 @@ export const TestsManagementScreen: React.FC = () => {
         if (dId) dogMap.set(String(dId).toLowerCase(), d);
       });
 
-      const enrichWithDogAvatar = (testList: IDogTest[]): IDogTest[] =>
+      const enrichWithDogAvatar = (
+        testList: IDogTest[],
+        trainerNamesMap: Record<string, string> = cachedTrainerMap,
+      ): IDogTest[] =>
         testList.map((t) => {
           const matchedDog = t.dogId
             ? dogMap.get(String(t.dogId).toLowerCase())
             : undefined;
-          if (!matchedDog) return t;
+          const resolvedTrainerId =
+            t.trainerId ||
+            t.volhardDetails?.trainerId ||
+            t.behaviorDetails?.trainerId ||
+            t.volhardPayload?.trainerId ||
+            t.behaviorPayload?.trainerId;
+          const resolvedTrainerName = resolveTrainerNameFromMap(
+            resolvedTrainerId,
+            trainerNamesMap,
+            t.trainerName,
+          );
           return {
             ...t,
-            dogsName: matchedDog.name || t.dogsName,
-            dogsBreed: formatDogRace(matchedDog.race) || t.dogsBreed,
-            avatarKey: matchedDog.avatarKey || t.avatarKey,
+            trainerId: resolvedTrainerId || t.trainerId,
+            trainerName: resolvedTrainerName,
+            dogsName: matchedDog?.name || t.dogsName,
+            dogsBreed: formatDogRace(matchedDog?.race) || t.dogsBreed,
+            avatarKey: matchedDog?.avatarKey || t.avatarKey,
           };
         });
 
-      if (cachedTests && cachedTests.length > 0 && dogMap.size > 0) {
-        setTests(enrichWithDogAvatar(cachedTests));
+      if (cachedTests && cachedTests.length > 0) {
+        setTests(enrichWithDogAvatar(cachedTests, cachedTrainerMap));
       }
 
       // 3. Se online, busca testes das novas rotas de Volhard e Behavior do backend
       const isOnline = await trainingSyncService.checkIsOnline();
       if (isOnline) {
+        try {
+          const userProfile = await getLoggedUserProfileService();
+          const resolvedId = getEmployeeIdentifier(userProfile);
+          if (isNonZeroUuid(resolvedId)) {
+            await saveCachedTrainerId(resolvedId);
+            if (userProfile?.name) {
+              await saveCachedTrainerNamesMap({
+                [resolvedId]: userProfile.name,
+                [resolvedId.toLowerCase()]: userProfile.name,
+              });
+            }
+          }
+        } catch (profileErr) {}
+
         try {
           const [volhardsRes, behaviorsRes] = await Promise.allSettled([
             listVolhardTestsService(),
@@ -167,6 +211,12 @@ export const TestsManagementScreen: React.FC = () => {
               ? behaviorsRes.value
               : [];
 
+          const extraTrainerIds = [
+            ...volhardItems.map((v) => v.trainerId),
+            ...behaviorItems.map((b) => b.trainerId),
+          ];
+          const trainerNamesMap = await getTrainerNamesMapService(extraTrainerIds);
+
           const fetchedTests: IDogTest[] = [];
           const cachedById = new Map<string, IDogTest>(
             (cachedTests || []).map((c) => [c.id, c]),
@@ -182,6 +232,12 @@ export const TestsManagementScreen: React.FC = () => {
             fetchedTests.push({
               id: v.id,
               dogId: v.dogId,
+              trainerId: v.trainerId || cachedMatch?.trainerId,
+              trainerName: resolveTrainerNameFromMap(
+                v.trainerId || cachedMatch?.trainerId,
+                trainerNamesMap,
+                cachedMatch?.trainerName,
+              ),
               dogsName: dog?.name || cachedMatch?.dogsName || "Cão",
               dogsBreed:
                 formatDogRace(dog?.race) ||
@@ -220,6 +276,12 @@ export const TestsManagementScreen: React.FC = () => {
             fetchedTests.push({
               id: b.id,
               dogId: b.dogId,
+              trainerId: b.trainerId || cachedMatch?.trainerId,
+              trainerName: resolveTrainerNameFromMap(
+                b.trainerId || cachedMatch?.trainerId,
+                trainerNamesMap,
+                cachedMatch?.trainerName,
+              ),
               dogsName: dog?.name || cachedMatch?.dogsName || "Cão",
               dogsBreed:
                 formatDogRace(dog?.race) ||
@@ -248,12 +310,43 @@ export const TestsManagementScreen: React.FC = () => {
             // Preserva itens locais ainda não sincronizados
             const unsyncedLocal = enrichWithDogAvatar(
               (cachedTests || []).filter((t) => t.isSynced === false),
+              trainerNamesMap,
             );
             const merged = [...unsyncedLocal, ...fetchedTests];
-            // Remove duplicatas por id
-            const unique = Array.from(
-              new Map(merged.map((item) => [item.id, item])).values(),
-            );
+
+            // Unifica por (dogId + type) para evitar registros duplicados do mesmo teste para o mesmo cão
+            const byDogAndType = new Map<string, IDogTest>();
+            const duplicateToDelete: IDogTest[] = [];
+
+            for (const item of merged) {
+              const key = `${String(item.dogId).toLowerCase()}_${item.type}`;
+              const existing = byDogAndType.get(key);
+              if (!existing) {
+                byDogAndType.set(key, item);
+              } else {
+                const existingProgress = existing.completedCount ?? 0;
+                const itemProgress = item.completedCount ?? 0;
+                if (itemProgress >= existingProgress) {
+                  duplicateToDelete.push(existing);
+                  byDogAndType.set(key, item);
+                } else {
+                  duplicateToDelete.push(item);
+                }
+              }
+            }
+
+            // Limpa no backend eventuais duplicatas antigas do mesmo (cão + tipo de teste)
+            for (const dup of duplicateToDelete) {
+              if (dup.id && !dup.id.startsWith("test_")) {
+                if (dup.type === TestType.VOLHARD) {
+                  deleteVolhardTestService(dup.id).catch(() => {});
+                } else {
+                  deleteBehaviorTestService(dup.id).catch(() => {});
+                }
+              }
+            }
+
+            const unique = Array.from(byDogAndType.values());
             setTests(unique);
             await saveCachedTests(unique);
           }
@@ -289,29 +382,68 @@ export const TestsManagementScreen: React.FC = () => {
       const isOnline = await trainingSyncService.checkIsOnline();
       const isoDate = toIsoDate(testData.date);
 
-      // Obtém ID do treinador autenticado
-      let trainerId = "00000000-0000-0000-0000-000000000000";
+      // Obtém ID do treinador autenticado (API -> Cache Local -> Fallback)
+      let trainerId = (await getCachedTrainerId()) || ZERO_UUID;
+      let trainerName = testData.trainerName;
       try {
         const userProfile = await getLoggedUserProfileService();
-        trainerId = getEmployeeIdentifier(userProfile) || trainerId;
+        const resolvedId = getEmployeeIdentifier(userProfile);
+        if (isNonZeroUuid(resolvedId)) {
+          trainerId = resolvedId;
+          await saveCachedTrainerId(resolvedId);
+          if (userProfile?.name) {
+            trainerName = userProfile.name;
+            await saveCachedTrainerNamesMap({
+              [resolvedId]: userProfile.name,
+              [resolvedId.toLowerCase()]: userProfile.name,
+            });
+          }
+        }
       } catch (profileErr) {
-        // fallback
+        // mantém o trainerId em cache se estiver offline
       }
+      if (!trainerName) {
+        const cachedMap = await getCachedTrainerNamesMap();
+        trainerName = resolveTrainerNameFromMap(trainerId, cachedMap);
+      }
+
+      // Garante que se já existir um teste do mesmo tipo para este cão, ele será atualizado (PATCH) e não duplicado (POST)
+      const existingSameDogAndType = tests.find(
+        (t) =>
+          String(t.dogId).toLowerCase() ===
+            String(testData.dogId).toLowerCase() && t.type === testData.type,
+      );
+      const resolvedExistingId =
+        existingId && existingSameDogAndType
+          ? existingSameDogAndType.id
+          : existingId || existingSameDogAndType?.id;
 
       let createdOnline = false;
       let remoteId: string | null =
-        existingId && !existingId.startsWith("test_") ? existingId : null;
+        resolvedExistingId && !resolvedExistingId.startsWith("test_")
+          ? resolvedExistingId
+          : null;
       const isRemoteUpdate = Boolean(remoteId);
+      let savedVolhardPayload: ICreateVolhardTestRequest | undefined =
+        testData.volhardPayload;
+      let savedBehaviorPayload: ICreateBehaviorTestRequest | undefined =
+        testData.behaviorPayload;
 
       if (testData.type === TestType.VOLHARD) {
+        const payloadTrainerId = isNonZeroUuid(
+          testData.volhardPayload?.trainerId,
+        )
+          ? testData.volhardPayload!.trainerId
+          : trainerId;
+
         const volhardDto: ICreateVolhardTestRequest = testData.volhardPayload
           ? {
               ...testData.volhardPayload,
-              trainerId: testData.volhardPayload.trainerId || trainerId,
+              trainerId: payloadTrainerId,
               date: isoDate,
             }
           : {
-              trainerId,
+              trainerId: payloadTrainerId,
               dogId: testData.dogId,
               testType: "VOLHARD",
               date: isoDate,
@@ -334,6 +466,7 @@ export const TestsManagementScreen: React.FC = () => {
                 elbowAngulation: StructureType.BOA,
               },
             };
+        savedVolhardPayload = volhardDto;
 
         if (isOnline) {
           try {
@@ -372,14 +505,20 @@ export const TestsManagementScreen: React.FC = () => {
           });
         }
       } else {
+        const payloadTrainerId = isNonZeroUuid(
+          testData.behaviorPayload?.trainerId,
+        )
+          ? testData.behaviorPayload!.trainerId
+          : trainerId;
+
         const behaviorDto: ICreateBehaviorTestRequest = testData.behaviorPayload
           ? {
               ...testData.behaviorPayload,
-              trainerId: testData.behaviorPayload.trainerId || trainerId,
+              trainerId: payloadTrainerId,
               date: isoDate,
             }
           : {
-              trainerId,
+              trainerId: payloadTrainerId,
               dogId: testData.dogId,
               testType: "BEHAVIOR",
               date: isoDate,
@@ -391,6 +530,7 @@ export const TestsManagementScreen: React.FC = () => {
               movementGait: MovementGait.MANTEM_TROTE,
               characteristics: [],
             };
+        savedBehaviorPayload = behaviorDto;
 
         if (isOnline) {
           try {
@@ -435,18 +575,32 @@ export const TestsManagementScreen: React.FC = () => {
 
       const finalId =
         remoteId ||
-        existingId ||
+        resolvedExistingId ||
         `test_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
       const newTest: IDogTest = {
         ...testData,
         id: finalId,
+        trainerId:
+          savedVolhardPayload?.trainerId ||
+          savedBehaviorPayload?.trainerId ||
+          trainerId,
+        trainerName: trainerName || testData.trainerName,
         isSynced: createdOnline,
+        volhardPayload: savedVolhardPayload,
+        behaviorPayload: savedBehaviorPayload,
       };
 
-      const filteredExisting = existingId
-        ? tests.filter((t) => t.id !== existingId && t.id !== finalId)
-        : tests;
+      const filteredExisting = tests.filter(
+        (t) =>
+          t.id !== existingId &&
+          t.id !== resolvedExistingId &&
+          t.id !== finalId &&
+          !(
+            String(t.dogId).toLowerCase() ===
+              String(testData.dogId).toLowerCase() && t.type === testData.type
+          ),
+      );
       const updatedTests = [newTest, ...filteredExisting];
       setTests(updatedTests);
       await saveCachedTests(updatedTests);

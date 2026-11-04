@@ -5,7 +5,12 @@ import MaterialDesignIcons from "@react-native-vector-icons/material-design-icon
 
 import { theme } from "../../../../theme/theme";
 import { Card } from "../../../shared/components/CardComponent";
-import { IDogTest, TestStatus, TestType } from "../../../types/Training";
+import {
+  CharacteristicCategory,
+  IDogTest,
+  TestStatus,
+  TestType,
+} from "../../../types/Training";
 import { femaleDogIcons, maleDogIcons } from "../../../consts/dogIcons";
 
 const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
@@ -41,13 +46,13 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
     ? "Concluído"
     : isInProgress
     ? "Em andamento"
-    : "Pendente";
+    : "Não feito";
 
   const statusIcon = isCompleted
     ? "check-circle-outline"
     : isInProgress
     ? "clock-outline"
-    : "clock-outline";
+    : "alert-circle-outline";
 
   let displayScore = test.score || "";
   if (isInProgress) {
@@ -115,7 +120,7 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
                     ? "#15803D"
                     : isInProgress
                     ? "#B45309"
-                    : "#6B7280"
+                    : "#DC2626"
                 }
               />
               <Text
@@ -166,6 +171,22 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
                 <Text style={styles.dateText}>{test.date}</Text>
               </View>
             )}
+          </View>
+
+          {/* TREINADOR RESPONSÁVEL */}
+          <View style={styles.trainerRow}>
+            <MaterialDesignIcons
+              name="account-tie-outline"
+              size={14}
+              color="#4B5563"
+            />
+            <Text
+              style={styles.trainerText}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              Treinador(a): {test.trainerName || "Não identificado"}
+            </Text>
           </View>
 
           {/* DESCRIÇÃO / OBSERVAÇÕES */}
@@ -281,7 +302,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEF3C7",
   },
   statusBadgePending: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
   },
   statusBadgeText: {
     fontFamily: theme.typography.fontFamily.bold,
@@ -295,7 +318,24 @@ const styles = StyleSheet.create({
     color: "#B45309",
   },
   statusBadgeTextPending: {
-    color: "#4B5563",
+    color: "#DC2626",
+  },
+  absentWarningBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  absentWarningBannerText: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 11,
+    color: "#DC2626",
   },
   metaRow: {
     flexDirection: "row",
@@ -332,6 +372,18 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.regular,
     fontSize: theme.typography.fontSize.xs,
     color: "#6B7280",
+  },
+  trainerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  trainerText: {
+    flex: 1,
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
+    fontSize: theme.typography.fontSize.xs,
+    color: "#4B5563",
   },
   descriptionText: {
     fontFamily: theme.typography.fontFamily.regular,

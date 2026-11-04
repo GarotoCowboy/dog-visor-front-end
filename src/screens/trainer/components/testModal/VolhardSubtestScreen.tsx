@@ -425,6 +425,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: "#E6F4F1",
   },
+  checkboxRowSelectedAbsent: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
   checkboxTextWrapper: {
     flex: 1,
   },
@@ -439,6 +443,11 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.medium,
     color: theme.colors.primary,
   },
+  checkboxLabelSelectedAbsent: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: "#DC2626",
+  },
   scoreNumberCircle: {
     width: 28,
     height: 28,
@@ -449,6 +458,9 @@ const styles = StyleSheet.create({
   },
   scoreNumberCircleSelected: {
     backgroundColor: theme.colors.primary,
+  },
+  scoreNumberCircleSelectedAbsent: {
+    backgroundColor: "#DC2626",
   },
   scoreNumberCircleText: {
     fontFamily: theme.typography.fontFamily.bold,

@@ -13,10 +13,29 @@ import FontAwesomeFreeSolid from "@react-native-vector-icons/fontawesome-free-so
 
 import { theme } from "../../../../theme/theme";
 import {
+  IDogTest,
   ITrainingReportResponse,
   ITrainingResponse,
+  ScoreComparisonLabel,
+  TestStatus,
+  TestType,
   TraningStatus,
 } from "../../../types/Training";
+import {
+  getTrainerNamesMapService,
+  listBehaviorTestsByDogIdService,
+  listVolhardTestsByDogIdService,
+  resolveTrainerNameFromMap,
+} from "../../../service/api";
+import {
+  getCachedTests,
+  getCachedTrainerNamesMap,
+} from "../../../service/trainingOfflineService";
+import { trainingSyncService } from "../../../service/trainingSyncService";
+import {
+  decodeBehaviorResultProgress,
+  decodeVolhardResultProgress,
+} from "../constants/testQuestionsData";
 
 const STAGE_TITLES: Record<number, string> = {
   1: "Comandos Básicos",
@@ -98,12 +117,204 @@ export const TrainingHistoryModal: React.FC<TrainingHistoryModalProps> = ({
   onClose,
 }) => {
   const [selectedStage, setSelectedStage] = useState<number>(1);
+  const [dogTests, setDogTests] = useState<IDogTest[]>([]);
+  const [resolvedTrainingTrainerName, setResolvedTrainingTrainerName] =
+    useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (visible && training?.currentStage) {
       setSelectedStage(Math.min(Math.max(training.currentStage, 1), 4));
     }
   }, [visible, training]);
+
+  useEffect(() => {
+    if (!visible || !training?.dogId) {
+      setDogTests([]);
+      setResolvedTrainingTrainerName(undefined);
+      return;
+    }
+
+    let isMounted = true;
+    const loadDogTestsAndTrainer = async () => {
+      const dogId = training.dogId;
+      const cachedMap = await getCachedTrainerNamesMap();
+
+      const initialTrainerName = resolveTrainerNameFromMap(
+        report?.trainerId || training.trainerId,
+        cachedMap,
+        report?.trainerName || training.trainerName,
+      );
+      if (isMounted) {
+        setResolvedTrainingTrainerName(initialTrainerName);
+      }
+
+      let localDogTests: IDogTest[] = [];
+      try {
+        const allCachedTests = await getCachedTests();
+        localDogTests = (allCachedTests || [])
+          .filter((t) => String(t.dogId).toLowerCase() === String(dogId).toLowerCase())
+          .map((t) => {
+            const tId =
+              t.trainerId ||
+              t.volhardDetails?.trainerId ||
+              t.behaviorDetails?.trainerId ||
+              t.volhardPayload?.trainerId ||
+              t.behaviorPayload?.trainerId;
+            return {
+              ...t,
+              trainerId: tId,
+              trainerName: resolveTrainerNameFromMap(tId, cachedMap, t.trainerName),
+            };
+          });
+        if (isMounted) {
+          setDogTests(localDogTests);
+        }
+      } catch (e) {}
+
+      const isOnline = await trainingSyncService.checkIsOnline();
+      if (!isOnline) return;
+
+      try {
+        const [volhardsRes, behaviorsRes] = await Promise.allSettled([
+          listVolhardTestsByDogIdService(dogId),
+          listBehaviorTestsByDogIdService(dogId),
+        ]);
+
+        const volhardItems =
+          volhardsRes.status === "fulfilled" && Array.isArray(volhardsRes.value)
+            ? volhardsRes.value
+            : [];
+        const behaviorItems =
+          behaviorsRes.status === "fulfilled" && Array.isArray(behaviorsRes.value)
+            ? behaviorsRes.value
+            : [];
+
+        const trainerIdsToResolve = [
+          report?.trainerId,
+          training.trainerId,
+          ...volhardItems.map((v) => v.trainerId),
+          ...behaviorItems.map((b) => b.trainerId),
+          ...localDogTests.map((t) => t.trainerId),
+        ];
+        const trainerNamesMap =
+          await getTrainerNamesMapService(trainerIdsToResolve);
+
+        if (isMounted) {
+          setResolvedTrainingTrainerName(
+            resolveTrainerNameFromMap(
+              report?.trainerId || training.trainerId,
+              trainerNamesMap,
+              report?.trainerName || training.trainerName,
+            ),
+          );
+        }
+
+        const cachedById = new Map<string, IDogTest>(
+          localDogTests.map((c) => [c.id, c]),
+        );
+        const remoteTests: IDogTest[] = [];
+
+        volhardItems.forEach((v) => {
+          const cachedMatch = cachedById.get(v.id);
+          const decoded = decodeVolhardResultProgress(
+            v.result,
+            cachedMatch?.answeredVolhardKeys,
+          );
+          remoteTests.push({
+            id: v.id,
+            dogId: v.dogId,
+            trainerId: v.trainerId,
+            trainerName: resolveTrainerNameFromMap(
+              v.trainerId,
+              trainerNamesMap,
+              cachedMatch?.trainerName,
+            ),
+            dogsName: training.dogsName,
+            dogsBreed: training.dogsBreed,
+            type: TestType.VOLHARD,
+            title: "Teste Volhard",
+            date: v.date || "",
+            description: decoded.cleanDescription,
+            score: decoded.isCompleted
+              ? `Estabilidade: ${v.stability}/5`
+              : `Em andamento: ${decoded.completedCount}/${decoded.totalCount} etapas`,
+            status: decoded.isCompleted
+              ? TestStatus.COMPLETED
+              : TestStatus.PENDING,
+            completedCount: decoded.completedCount,
+            totalCount: decoded.totalCount,
+          });
+        });
+
+        behaviorItems.forEach((b) => {
+          const cachedMatch = cachedById.get(b.id);
+          const decoded = decodeBehaviorResultProgress(
+            b.result,
+            b.characteristics,
+            cachedMatch?.answeredBehaviorNumbers,
+          );
+          const compLabel = b.scoreComparison
+            ? ScoreComparisonLabel[b.scoreComparison] || b.scoreComparison
+            : "Concluído";
+          remoteTests.push({
+            id: b.id,
+            dogId: b.dogId,
+            trainerId: b.trainerId,
+            trainerName: resolveTrainerNameFromMap(
+              b.trainerId,
+              trainerNamesMap,
+              cachedMatch?.trainerName,
+            ),
+            dogsName: training.dogsName,
+            dogsBreed: training.dogsBreed,
+            type: TestType.BEHAVIOR,
+            title: "Teste Behavior",
+            date: b.date || "",
+            description: decoded.cleanDescription,
+            score: decoded.isCompleted
+              ? compLabel
+              : `Em andamento: ${decoded.completedCount}/${decoded.totalCount} aspectos`,
+            status: decoded.isCompleted
+              ? TestStatus.COMPLETED
+              : TestStatus.PENDING,
+            completedCount: decoded.completedCount,
+            totalCount: decoded.totalCount,
+          });
+        });
+
+        if (isMounted && (remoteTests.length > 0 || localDogTests.length > 0)) {
+          const unsyncedLocal = localDogTests
+            .filter((t) => t.isSynced === false)
+            .map((t) => ({
+              ...t,
+              trainerName: resolveTrainerNameFromMap(
+                t.trainerId,
+                trainerNamesMap,
+                t.trainerName,
+              ),
+            }));
+          const merged = [...unsyncedLocal, ...remoteTests];
+          const byDogAndType = new Map<string, IDogTest>();
+          for (const item of merged) {
+            const key = `${String(item.dogId).toLowerCase()}_${item.type}`;
+            const existing = byDogAndType.get(key);
+            if (
+              !existing ||
+              (item.completedCount ?? 0) >= (existing.completedCount ?? 0)
+            ) {
+              byDogAndType.set(key, item);
+            }
+          }
+          setDogTests(Array.from(byDogAndType.values()));
+        }
+      } catch (e) {}
+    };
+
+    loadDogTestsAndTrainer();
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, training, report]);
 
   // Obtém dados da etapa selecionada a partir do relatório ou fallback de histórico
   const getStageReport = () => {
@@ -194,6 +405,25 @@ export const TrainingHistoryModal: React.FC<TrainingHistoryModalProps> = ({
                     ? "Treinamento Encerrado (Inapto)"
                     : `Etapa atual do cão: ${training?.currentStage || 1} de 4`}
                 </Text>
+                {Boolean(
+                  resolvedTrainingTrainerName ||
+                    report?.trainerName ||
+                    training?.trainerName,
+                ) && (
+                  <View style={styles.headerTrainerRow}>
+                    <MaterialDesignIcons
+                      name="account-tie-outline"
+                      size={13}
+                      color="#2E6B65"
+                    />
+                    <Text style={styles.headerTrainerText} numberOfLines={1}>
+                      Treinador(a):{" "}
+                      {resolvedTrainingTrainerName ||
+                        report?.trainerName ||
+                        training?.trainerName}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -297,11 +527,61 @@ export const TrainingHistoryModal: React.FC<TrainingHistoryModalProps> = ({
             </View>
           </View>
 
-          {/* LISTA DE SESSÕES REGISTRADAS */}
+          {/* LISTA DE SESSÕES REGISTRADAS E TESTES DO CÃO */}
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollList}
           >
+            {/* TESTES REALIZADOS PELO CÃO (VOLHARD & BEHAVIOR) */}
+            {dogTests.length > 0 && (
+              <View style={styles.testsSectionCard}>
+                <View style={styles.testsSectionHeader}>
+                  <MaterialDesignIcons
+                    name="clipboard-check-outline"
+                    size={16}
+                    color="#2E6B65"
+                  />
+                  <Text style={styles.testsSectionTitle}>
+                    Testes Realizados ({dogTests.length})
+                  </Text>
+                </View>
+
+                {dogTests.map((t) => {
+                  const isCompleted = t.status === TestStatus.COMPLETED;
+                  return (
+                    <View key={t.id} style={styles.testHistoryItem}>
+                      <View style={styles.testHistoryTopRow}>
+                        <Text style={styles.testHistoryTitle}>{t.title}</Text>
+                        <Text style={styles.testHistoryDate}>
+                          {formatDate(t.date)}
+                        </Text>
+                      </View>
+                      <View style={styles.testHistoryTrainerRow}>
+                        <MaterialDesignIcons
+                          name="account-tie-outline"
+                          size={13}
+                          color="#4B5563"
+                        />
+                        <Text style={styles.testHistoryTrainerText}>
+                          Treinador(a): {t.trainerName || "Não identificado"}
+                        </Text>
+                      </View>
+                      {Boolean(t.score) && (
+                        <Text
+                          style={[
+                            styles.testHistoryScore,
+                            { color: isCompleted ? "#15803D" : "#B45309" },
+                          ]}
+                        >
+                          {t.score}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
             {sessions.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <FontAwesomeFreeSolid
@@ -449,6 +729,77 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     color: "#6B7280",
     marginTop: 2,
+  },
+  headerTrainerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  headerTrainerText: {
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
+    fontSize: 11,
+    color: "#2E6B65",
+  },
+  testsSectionCard: {
+    backgroundColor: "#F0FDF4",
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    padding: 12,
+    gap: 8,
+  },
+  testsSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  testsSectionTitle: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 12,
+    color: "#166534",
+  },
+  testHistoryItem: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: theme.borderRadius.sm,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#DCFCE7",
+    gap: 4,
+  },
+  testHistoryTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  testHistoryTitle: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 12,
+    color: theme.colors.text,
+  },
+  testHistoryDate: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 11,
+    color: "#6B7280",
+  },
+  testHistoryTrainerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  testHistoryTrainerText: {
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
+    fontSize: 11,
+    color: "#374151",
+  },
+  testHistoryScore: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 11,
   },
   modalCloseButton: {
     padding: 4,

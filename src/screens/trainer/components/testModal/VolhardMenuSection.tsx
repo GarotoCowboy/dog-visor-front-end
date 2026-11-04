@@ -264,6 +264,7 @@ export const VolhardMenuSection: React.FC<VolhardMenuSectionProps> = memo(
                   key={sub.key}
                   style={[
                     styles.volhardMenuButton,
+                    !isAnswered && styles.volhardMenuButtonUnanswered,
                     isAnswered && styles.volhardMenuButtonAnswered,
                   ]}
                   activeOpacity={0.75}
@@ -272,12 +273,14 @@ export const VolhardMenuSection: React.FC<VolhardMenuSectionProps> = memo(
                   <View
                     style={[
                       styles.volhardMenuNumberCircle,
+                      !isAnswered && styles.volhardMenuNumberCircleUnanswered,
                       isAnswered && styles.volhardMenuNumberCircleAnswered,
                     ]}
                   >
                     <Text
                       style={[
                         styles.volhardMenuNumberText,
+                        !isAnswered && styles.volhardMenuNumberTextUnanswered,
                         isAnswered && styles.volhardMenuNumberTextAnswered,
                       ]}
                     >
@@ -293,25 +296,32 @@ export const VolhardMenuSection: React.FC<VolhardMenuSectionProps> = memo(
                   <View
                     style={[
                       styles.volhardScoreBadge,
-                      isAnswered
-                        ? styles.volhardScoreBadgeDone
-                        : styles.volhardScoreBadgePending,
+                      !isAnswered
+                        ? styles.volhardScoreBadgePending
+                        : styles.volhardScoreBadgeDone,
                     ]}
                   >
+                    {!isAnswered && (
+                      <MaterialDesignIcons
+                        name="alert-circle-outline"
+                        size={13}
+                        color="#C2410C"
+                      />
+                    )}
                     <Text
                       style={[
                         styles.volhardScoreBadgeText,
-                        isAnswered
-                          ? styles.volhardScoreBadgeTextDone
-                          : styles.volhardScoreBadgeTextPending,
+                        !isAnswered
+                          ? styles.volhardScoreBadgeTextPending
+                          : styles.volhardScoreBadgeTextDone,
                       ]}
                     >
-                      {isAnswered ? `Nota ${scoreVal}` : "Avaliar"}
+                      {isAnswered ? `Nota ${scoreVal}` : "Não feito"}
                     </Text>
                     <MaterialDesignIcons
                       name="chevron-right"
                       size={18}
-                      color={isAnswered ? "#15803D" : theme.colors.primary}
+                      color={!isAnswered ? "#EA580C" : "#15803D"}
                     />
                   </View>
                 </TouchableOpacity>
@@ -348,7 +358,7 @@ export const VolhardMenuSection: React.FC<VolhardMenuSectionProps> = memo(
                   styles.subSectionBadgeText,
                   isStructureComplete
                     ? { color: "#15803D" }
-                    : { color: "#B45309" },
+                    : { color: "#C2410C" },
                 ]}
               >
                 {structureCount}/{VOLHARD_STRUCTURE_ITEMS.length}
@@ -366,21 +376,34 @@ export const VolhardMenuSection: React.FC<VolhardMenuSectionProps> = memo(
             {VOLHARD_STRUCTURE_ITEMS.map((item) => {
               const isItemAnswered = structureAnsweredFields[item.key];
               const value = structureState[item.key];
+              const isRuim = isItemAnswered && value === StructureType.RUIM;
 
               return (
                 <View
                   key={item.key}
                   style={[
                     styles.structureChip,
-                    isItemAnswered && styles.structureChipAnswered,
+                    !isItemAnswered && styles.structureChipUnanswered,
+                    isItemAnswered && !isRuim && styles.structureChipAnswered,
+                    isRuim && styles.structureChipRuim,
                   ]}
                 >
                   <MaterialDesignIcons
                     name={
-                      isItemAnswered ? "check-circle" : "circle-outline"
+                      !isItemAnswered
+                        ? "alert-circle-outline"
+                        : isRuim
+                        ? "close-circle"
+                        : "check-circle"
                     }
                     size={14}
-                    color={isItemAnswered ? "#15803D" : "#9CA3AF"}
+                    color={
+                      !isItemAnswered
+                        ? "#EA580C"
+                        : isRuim
+                        ? "#DC2626"
+                        : "#15803D"
+                    }
                   />
                   <Text
                     style={styles.structureChipLabel}
@@ -396,13 +419,13 @@ export const VolhardMenuSection: React.FC<VolhardMenuSectionProps> = memo(
                           ? { color: "#15803D" }
                           : value === StructureType.ACEITAVEL
                           ? { color: "#B45309" }
-                          : { color: "#B91C1C" }
-                        : { color: "#9CA3AF" },
+                          : { color: "#DC2626" }
+                        : { color: "#C2410C" },
                     ]}
                   >
                     {isItemAnswered
                       ? StructureTypeLabel[value]
-                      : "Pendente"}
+                      : "Não feito"}
                   </Text>
                 </View>
               );
@@ -686,9 +709,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
+  structureChipUnanswered: {
+    borderColor: "#FDBA74",
+    backgroundColor: "#FFF7ED",
+  },
   structureChipAnswered: {
     borderColor: "#A7F3D0",
     backgroundColor: "#F0FDF4",
+  },
+  structureChipRuim: {
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
   },
   structureChipLabel: {
     fontFamily: theme.typography.fontFamily.medium,
@@ -733,9 +764,17 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 10,
   },
+  volhardMenuButtonUnanswered: {
+    borderColor: "#FDBA74",
+    backgroundColor: "#FFF7ED",
+  },
   volhardMenuButtonAnswered: {
     borderColor: "#A7F3D0",
     backgroundColor: "#F0FDF4",
+  },
+  volhardMenuButtonAbsent: {
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
   },
   volhardMenuNumberCircle: {
     width: 28,
@@ -745,8 +784,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  volhardMenuNumberCircleUnanswered: {
+    backgroundColor: "#FFEDD5",
+  },
   volhardMenuNumberCircleAnswered: {
     backgroundColor: "#15803D",
+  },
+  volhardMenuNumberCircleAbsent: {
+    backgroundColor: "#FEE2E2",
   },
   volhardMenuNumberText: {
     fontFamily: theme.typography.fontFamily.bold,
@@ -754,8 +799,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.primary,
   },
+  volhardMenuNumberTextUnanswered: {
+    color: "#C2410C",
+  },
   volhardMenuNumberTextAnswered: {
     color: theme.colors.white,
+  },
+  volhardMenuNumberTextAbsent: {
+    color: "#DC2626",
   },
   volhardMenuTextCol: {
     flex: 1,
@@ -783,12 +834,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   volhardScoreBadgePending: {
-    backgroundColor: "#F9FAFB",
-    borderColor: "#E5E7EB",
+    backgroundColor: "#FFEDD5",
+    borderColor: "#FDBA74",
   },
   volhardScoreBadgeDone: {
     backgroundColor: "#DCFCE7",
     borderColor: "#86EFAC",
+  },
+  volhardScoreBadgeAbsent: {
+    backgroundColor: "#FEE2E2",
+    borderColor: "#FCA5A5",
   },
   volhardScoreBadgeText: {
     fontFamily: theme.typography.fontFamily.bold,
@@ -796,9 +851,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   volhardScoreBadgeTextPending: {
-    color: theme.colors.primary,
+    color: "#C2410C",
   },
   volhardScoreBadgeTextDone: {
     color: "#15803D",
+  },
+  volhardScoreBadgeTextAbsent: {
+    color: "#DC2626",
   },
 });

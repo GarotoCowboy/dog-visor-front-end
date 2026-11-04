@@ -307,25 +307,35 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
     }
   };
 
-  const activeExistingTest = useMemo(() => {
+  const findExistingForDogAndType = (
+    targetDogId: string,
+    targetType: TestType,
+  ): IDogTest | null => {
     if (
       editingTest &&
       String(editingTest.dogId).toLowerCase() ===
-        String(selectedDogId).toLowerCase() &&
-      editingTest.type === testType
+        String(targetDogId).toLowerCase() &&
+      editingTest.type === targetType
     ) {
       return editingTest;
     }
-    return (
-      existingTests.find(
-        (t) =>
-          String(t.dogId).toLowerCase() ===
-            String(selectedDogId).toLowerCase() &&
-          t.type === testType &&
-          t.status === TestStatus.PENDING,
-      ) || null
+    const matches = existingTests.filter(
+      (t) =>
+        String(t.dogId).toLowerCase() === String(targetDogId).toLowerCase() &&
+        t.type === targetType,
     );
-  }, [editingTest, existingTests, selectedDogId, testType]);
+    if (matches.length === 0) return null;
+    return (
+      matches.find((t) => t.status === TestStatus.COMPLETED) ||
+      matches.find((t) => (t.completedCount ?? 0) > 0) ||
+      matches[0]
+    );
+  };
+
+  const activeExistingTest = useMemo(
+    () => findExistingForDogAndType(selectedDogId, testType),
+    [editingTest, existingTests, selectedDogId, testType],
+  );
 
   const [isReady, setIsReady] = useState(false);
 
@@ -340,6 +350,36 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
     }
   }, [visible]);
 
+  const getDogTestBadge = (dog: IDogResponse) => {
+    const existing = findExistingForDogAndType(dog.ID, testType);
+    const total =
+      testType === TestType.VOLHARD
+        ? VOLHARD_TOTAL_ITEMS_COUNT
+        : BEHAVIOR_CHECKLIST_ITEMS.length;
+    const typeName =
+      testType === TestType.VOLHARD ? "Volhard" : "Behavior";
+
+    if (!existing) {
+      return {
+        status: "NOT_STARTED" as const,
+        label: `Sem Teste ${typeName}`,
+      };
+    }
+
+    if (existing.status === TestStatus.COMPLETED) {
+      return {
+        status: "COMPLETED" as const,
+        label: `Já realizou ${typeName}`,
+      };
+    }
+
+    const done = existing.completedCount ?? 0;
+    return {
+      status: "IN_PROGRESS" as const,
+      label: `Em andamento (${done}/${existing.totalCount || total})`,
+    };
+  };
+
   useEffect(() => {
     if (!visible) return;
 
@@ -351,24 +391,31 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
       setTestType(editingTest.type);
       loadFromTestRecord(editingTest);
     } else {
-      const targetDogId =
-        selectedDogId || (availableDogs.length > 0 ? availableDogs[0].ID : "");
       const targetType = initialTestType || testType;
-
-      if (!selectedDogId && targetDogId) {
-        setSelectedDogId(targetDogId);
-      }
       setTestType(targetType);
 
-      const pendingForDog = existingTests.find(
-        (t) =>
-          String(t.dogId).toLowerCase() ===
-            String(targetDogId).toLowerCase() &&
-          t.type === targetType &&
-          t.status === TestStatus.PENDING,
+      // Prioriza selecionar inicialmente um cão que ainda não tenha teste concluído
+      const dogWithoutTest = availableDogs.find(
+        (d) => !findExistingForDogAndType(d.ID, targetType),
       );
-      if (pendingForDog) {
-        loadFromTestRecord(pendingForDog);
+      const dogInProgress = availableDogs.find((d) => {
+        const ex = findExistingForDogAndType(d.ID, targetType);
+        return ex && ex.status !== TestStatus.COMPLETED;
+      });
+      const fallbackDogId =
+        dogWithoutTest?.ID ||
+        dogInProgress?.ID ||
+        selectedDogId ||
+        (availableDogs.length > 0 ? availableDogs[0].ID : "");
+
+      setSelectedDogId(fallbackDogId);
+
+      const existingForDog = findExistingForDogAndType(
+        fallbackDogId,
+        targetType,
+      );
+      if (existingForDog) {
+        loadFromTestRecord(existingForDog);
       } else {
         resetForm();
       }
@@ -379,24 +426,9 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
     const newDogId = dog.ID;
     setSelectedDogId(newDogId);
 
-    if (
-      editingTest &&
-      String(editingTest.dogId).toLowerCase() ===
-        String(newDogId).toLowerCase() &&
-      editingTest.type === testType
-    ) {
-      loadFromTestRecord(editingTest);
-      return;
-    }
-
-    const pendingForDog = existingTests.find(
-      (t) =>
-        String(t.dogId).toLowerCase() === String(newDogId).toLowerCase() &&
-        t.type === testType &&
-        t.status === TestStatus.PENDING,
-    );
-    if (pendingForDog) {
-      loadFromTestRecord(pendingForDog);
+    const existingForDog = findExistingForDogAndType(newDogId, testType);
+    if (existingForDog) {
+      loadFromTestRecord(existingForDog);
     } else {
       resetForm();
     }
@@ -406,25 +438,9 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
     if (newType === testType) return;
     setTestType(newType);
 
-    if (
-      editingTest &&
-      String(editingTest.dogId).toLowerCase() ===
-        String(selectedDogId).toLowerCase() &&
-      editingTest.type === newType
-    ) {
-      loadFromTestRecord(editingTest);
-      return;
-    }
-
-    const pendingForDog = existingTests.find(
-      (t) =>
-        String(t.dogId).toLowerCase() ===
-          String(selectedDogId).toLowerCase() &&
-        t.type === newType &&
-        t.status === TestStatus.PENDING,
-    );
-    if (pendingForDog) {
-      loadFromTestRecord(pendingForDog);
+    const existingForDog = findExistingForDogAndType(selectedDogId, newType);
+    if (existingForDog) {
+      loadFromTestRecord(existingForDog);
     } else {
       resetForm();
     }
@@ -545,22 +561,6 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
     } else if (item.specialKey === "movementGait") {
       setMovementGait(strVal as MovementGait);
     }
-  };
-
-  const handleFillUnansweredBehaviorAsAbsent = () => {
-    const nextMap = { ...behaviorCharacteristicAnswers };
-    BEHAVIOR_CHECKLIST_ITEMS.forEach((item) => {
-      if (item.kind === "CHARACTERISTIC" && !nextMap[item.number]) {
-        nextMap[item.number] = CharacteristicCategory.AUSENTE;
-      }
-    });
-    setBehaviorCharacteristicAnswers(nextMap);
-    if (!dualHandler) setDualHandler(DualHandler.TRABALHA_BEM);
-    if (!relationshipSkill)
-      setRelationshipSkill(RelationshipSkill.MUITO_HABIL);
-    if (!scoreComparison) setScoreComparison(ScoreComparison.CAO_FLEXIVEL);
-    if (!workSpeed) setWorkSpeed(WorkSpeed.MODERADO);
-    if (!movementGait) setMovementGait(MovementGait.MANTEM_TROTE);
   };
 
   const handleSetAllStructure = (val: StructureType) => {
@@ -743,7 +743,10 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
       volhardPayload:
         testType === TestType.VOLHARD
           ? {
-              trainerId: "",
+              trainerId:
+                activeExistingTest?.volhardDetails?.trainerId ||
+                activeExistingTest?.volhardPayload?.trainerId ||
+                "",
               dogId,
               testType: "VOLHARD",
               date: isoDate,
@@ -763,7 +766,10 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
       behaviorPayload:
         testType === TestType.BEHAVIOR
           ? {
-              trainerId: "",
+              trainerId:
+                activeExistingTest?.behaviorDetails?.trainerId ||
+                activeExistingTest?.behaviorPayload?.trainerId ||
+                "",
               dogId,
               testType: "BEHAVIOR",
               date: isoDate,
@@ -880,6 +886,13 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
                     dogs={availableDogs}
                     selectedDog={selectedDog}
                     onSelectDog={handleSelectDog}
+                    getDogTestBadge={getDogTestBadge}
+                    modalTitle={
+                      testType === TestType.VOLHARD
+                        ? "Selecionar Cão • Teste Volhard"
+                        : "Selecionar Cão • Teste Behavior"
+                    }
+                    modalSubtitle="Cães separados por status do teste"
                     required
                   />
                 </View>
@@ -999,29 +1012,6 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
                   </View>
                 </View>
 
-                {!isAllCompleted && (
-                  <View style={styles.infoBox}>
-                    <View style={styles.infoBoxHeader}>
-                      <MaterialDesignIcons
-                        name="clock-check-outline"
-                        size={16}
-                        color="#B45309"
-                      />
-                      <Text style={[styles.infoBoxTitle, { color: "#B45309" }]}>
-                        {activeExistingTest
-                          ? "Continuando avaliação em andamento"
-                          : "Avaliação realizada em etapas"}
-                      </Text>
-                    </View>
-                    <Text style={styles.infoBoxBody}>
-                      Você pode salvar os testes realizados hoje e continuar os
-                      demais em outro dia. O teste ficará como{" "}
-                      <Text style={{ fontWeight: "700" }}>Pendente</Text> até
-                      que todos os {currentTotalCount} itens sejam preenchidos.
-                    </Text>
-                  </View>
-                )}
-
                 {/* MENU VOLHARD OU BEHAVIOR */}
                 {!isReady ? (
                   <View
@@ -1062,7 +1052,6 @@ export const CreateTestModal: React.FC<CreateTestModalProps> = ({
                     completedCount={behaviorCompletedCount}
                     filteredItems={filteredBehaviorItems}
                     getItemSelectedLabel={getBehaviorItemSelectedLabel}
-                    onQuickFillUnanswered={handleFillUnansweredBehaviorAsAbsent}
                     onOpenItem={(idx) => setActiveBehaviorIndex(idx)}
                   />
                 )}
@@ -1258,32 +1247,6 @@ const styles = StyleSheet.create({
   },
   statusChoiceTextCompleted: {
     color: "#15803D",
-  },
-  infoBox: {
-    backgroundColor: "#F9FAFB",
-    padding: 14,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    gap: 6,
-  },
-  infoBoxHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  infoBoxTitle: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.primary,
-    textTransform: "uppercase",
-  },
-  infoBoxBody: {
-    fontFamily: theme.typography.fontFamily.regular,
-    fontSize: theme.typography.fontSize.sm,
-    color: "#374151",
-    lineHeight: 20,
   },
   footer: {
     flexDirection: "row",

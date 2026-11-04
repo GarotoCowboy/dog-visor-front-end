@@ -173,11 +173,29 @@ export const VolhardStructureScreen: React.FC<VolhardStructureScreenProps> = mem
               const selectedValue = structureState[item.key];
 
               return (
-                <View key={item.key} style={styles.structureCard}>
+                <View
+                  key={item.key}
+                  style={[
+                    styles.structureCard,
+                    !isAnswered && styles.structureCardUnanswered,
+                  ]}
+                >
                   {/* CABEÇALHO DO ITEM */}
                   <View style={styles.cardHeader}>
-                    <View style={styles.numberBadge}>
-                      <Text style={styles.numberBadgeText}>{item.number}</Text>
+                    <View
+                      style={[
+                        styles.numberBadge,
+                        !isAnswered && styles.numberBadgeUnanswered,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.numberBadgeText,
+                          !isAnswered && styles.numberBadgeTextUnanswered,
+                        ]}
+                      >
+                        {item.number}
+                      </Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.cardTitle}>{item.title}</Text>
@@ -213,8 +231,13 @@ export const VolhardStructureScreen: React.FC<VolhardStructureScreenProps> = mem
                       </View>
                     ) : (
                       <View style={styles.answeredBadgePending}>
+                        <MaterialDesignIcons
+                          name="alert-circle-outline"
+                          size={12}
+                          color="#C2410C"
+                        />
                         <Text style={styles.answeredBadgePendingText}>
-                          Pendente
+                          Não feito
                         </Text>
                       </View>
                     )}
@@ -568,6 +591,10 @@ const styles = StyleSheet.create({
     gap: 10,
     ...theme.shadows.sm,
   },
+  structureCardUnanswered: {
+    borderColor: "#FDBA74",
+    backgroundColor: "#FFF7ED",
+  },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -581,11 +608,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  numberBadgeUnanswered: {
+    backgroundColor: "#FFEDD5",
+  },
   numberBadgeText: {
     fontFamily: theme.typography.fontFamily.bold,
     fontWeight: theme.typography.fontWeight.bold,
     fontSize: 12,
     color: theme.colors.primary,
+  },
+  numberBadgeTextUnanswered: {
+    color: "#C2410C",
   },
   cardTitle: {
     fontFamily: theme.typography.fontFamily.bold,
@@ -613,16 +646,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   answeredBadgePending: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FFEDD5",
+    borderWidth: 1,
+    borderColor: "#FDBA74",
   },
   answeredBadgePendingText: {
-    fontFamily: theme.typography.fontFamily.medium,
-    fontWeight: theme.typography.fontWeight.medium,
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
     fontSize: 11,
-    color: "#9CA3AF",
+    color: "#C2410C",
   },
   cardDescription: {
     fontFamily: theme.typography.fontFamily.regular,

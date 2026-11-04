@@ -18,6 +18,7 @@ export const DogPickerField: React.FC<DogPickerFieldProps> = ({
   dogs: propDogs,
   filterFn,
   isDogDisabled,
+  getDogTestBadge,
   disabled = false,
   required = false,
   error,
@@ -126,6 +127,7 @@ export const DogPickerField: React.FC<DogPickerFieldProps> = ({
         searchText={searchText}
         onSearchChange={setSearchText}
         isDogDisabled={isDogDisabled}
+        getDogTestBadge={getDogTestBadge}
         modalTitle={modalTitle}
         modalSubtitle={modalSubtitle}
       />

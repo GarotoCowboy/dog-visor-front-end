@@ -164,7 +164,11 @@ export const ExecuteTrainingModal: React.FC<ExecuteTrainingModalProps> = ({
       stage >= 4
         ? `Deseja confirmar a aprovação (Apto) para ${training?.dogsName || "o cão"}? Isso encerrará com sucesso o treinamento completo de Cão-Guia!`
         : `Deseja aprovar (Apto) a Etapa ${stage}? ${training?.dogsName || "O cão"} avançará para a Etapa ${stage + 1}.`,
-      () => onFinalizeStage(stage, TraningStatus.Apto, checks),
+      () => {
+        setTimeout(() => {
+          onFinalizeStage(stage, TraningStatus.Apto, checks);
+        }, 120);
+      },
       stage >= 4 ? "Concluir Treinamento" : "Aprovar Etapa",
       "Cancelar",
     );
@@ -174,7 +178,11 @@ export const ExecuteTrainingModal: React.FC<ExecuteTrainingModalProps> = ({
     showConfirm(
       `Finalizar como Inapto`,
       `Deseja realmente finalizar a Etapa ${stage} como INAPTO para ${training?.dogsName || "o cão"}? Esta ação encerrará definitivamente o treinamento no sistema.`,
-      () => onFinalizeStage(stage, TraningStatus.Inapto, checks),
+      () => {
+        setTimeout(() => {
+          onFinalizeStage(stage, TraningStatus.Inapto, checks);
+        }, 120);
+      },
       "Confirmar Inapto",
       "Cancelar",
     );
@@ -185,177 +193,188 @@ export const ExecuteTrainingModal: React.FC<ExecuteTrainingModalProps> = ({
   const todayFormatted = new Date().toLocaleDateString("pt-BR");
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <Pressable style={styles.modalBackdrop} onPress={onClose} />
-        <View style={styles.modalContentCard}>
-          {/* CABEÇALHO */}
-          <View style={styles.modalHeader}>
-            <View style={{ flex: 1 }}>
-              <View style={styles.titleRow}>
-                <MaterialDesignIcons
-                  name="school"
-                  size={22}
-                  color={theme.colors.primary}
-                />
-                <Text style={styles.modalTitle} numberOfLines={1}>
-                  {training?.dogsName || "Cão"} • Etapa {stage} de 4
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent
+        onRequestClose={onClose}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={onClose} />
+          <View style={styles.modalContentCard}>
+            {/* CABEÇALHO */}
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <View style={styles.titleRow}>
+                  <MaterialDesignIcons
+                    name="school"
+                    size={22}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={styles.modalTitle} numberOfLines={1}>
+                    {training?.dogsName || "Cão"} • Etapa {stage} de 4
+                  </Text>
+                </View>
+                <Text style={styles.modalSubtitle}>
+                  {isTodaySessionRecorded
+                    ? `Atualizando Sessão de Hoje (${todaySessionNumber}/21) • Data: ${todayFormatted}`
+                    : isMaxSessionsReached
+                    ? `Etapa com 21/21 sessões concluídas`
+                    : `Sessão ${nextSessionNumber} de 21 • Data: ${todayFormatted}`}
                 </Text>
               </View>
-              <Text style={styles.modalSubtitle}>
-                {isTodaySessionRecorded
-                  ? `Atualizando Sessão de Hoje (${todaySessionNumber}/21) • Data: ${todayFormatted}`
-                  : isMaxSessionsReached
-                  ? `Etapa com 21/21 sessões concluídas`
-                  : `Sessão ${nextSessionNumber} de 21 • Data: ${todayFormatted}`}
-              </Text>
+
+              <TouchableOpacity
+                onPress={onClose}
+                style={styles.modalCloseButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialDesignIcons
+                  name="close"
+                  size={22}
+                  color={theme.colors.text}
+                />
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
-              <MaterialDesignIcons
-                name="close"
-                size={22}
-                color={theme.colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* LISTA DE EXERCÍCIOS DA ETAPA */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollList}
-          >
-            {/* ALERTA DE SESSÃO DO DIA / LIMITE DE 21 SESSÕES */}
-            {isTodaySessionRecorded ? (
-              <View style={styles.todayBanner}>
-                <MaterialDesignIcons
-                  name="calendar-check"
-                  size={18}
-                  color="#0284C7"
-                />
-                <Text style={styles.todayBannerText}>
-                  Treinamento de hoje já registrado. As alterações atualizarão a sessão existente (Sessão {todaySessionNumber} de 21) sem criar registros duplicados.
-                </Text>
-              </View>
-            ) : isMaxSessionsReached ? (
-              <View style={styles.warningBanner}>
-                <MaterialDesignIcons
-                  name="alert-circle"
-                  size={18}
-                  color="#B91C1C"
-                />
-                <Text style={styles.warningBannerText}>
-                  Limite máximo de 21 sessões atingido para esta etapa! Não é possível
-                  adicionar novos treinos diários. Avalie o cão e finalize a etapa para avançar.
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.infoBanner}>
-                <MaterialDesignIcons
-                  name="information-outline"
-                  size={16}
-                  color={theme.colors.primary}
-                />
-                <Text style={styles.infoBannerText}>
-                  Marque os exercícios cumpridos na sessão de hoje ({completedCount}/{exercises.length} - {progressPercent}%).
-                </Text>
-              </View>
-            )}
-
-            {exercises.map((item) => {
-              const isChecked = Boolean(checks[item.key]);
-              return (
-                <View
-                  key={item.key}
-                  style={[
-                    styles.exerciseRow,
-                    isChecked && styles.exerciseRowChecked,
-                  ]}
-                >
-                  <CheckBox
-                    value={isChecked}
-                    onChangeChecked={(val) => handleToggle(item.key, val)}
-                    label={item.label}
+            {/* LISTA DE EXERCÍCIOS DA ETAPA */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollList}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* ALERTA DE SESSÃO DO DIA / LIMITE DE 21 SESSÕES */}
+              {isTodaySessionRecorded ? (
+                <View style={styles.todayBanner}>
+                  <MaterialDesignIcons
+                    name="calendar-check"
+                    size={18}
+                    color="#0284C7"
                   />
+                  <Text style={styles.todayBannerText}>
+                    Treinamento de hoje já registrado. As alterações atualizarão a sessão existente (Sessão {todaySessionNumber} de 21) sem criar registros duplicados.
+                  </Text>
                 </View>
-              );
-            })}
-
-            {/* BOTÕES DE AÇÃO */}
-            <View style={styles.actionsContainer}>
-              {(!isMaxSessionsReached || isTodaySessionRecorded) && (
-                <Button
-                  text={
-                    submitting
-                      ? isTodaySessionRecorded
-                        ? "Atualizando..."
-                        : "Gravando..."
-                      : isTodaySessionRecorded
-                      ? `Atualizar Sessão de Hoje (${todaySessionNumber}/21)`
-                      : `Salvar Sessão Diária (${nextSessionNumber}/21)`
-                  }
-                  onPress={() => onSaveSession(stage, checks)}
-                  disabled={submitting}
-                />
+              ) : isMaxSessionsReached ? (
+                <View style={styles.warningBanner}>
+                  <MaterialDesignIcons
+                    name="alert-circle"
+                    size={18}
+                    color="#B91C1C"
+                  />
+                  <Text style={styles.warningBannerText}>
+                    Limite máximo de 21 sessões atingido para esta etapa! Não é possível
+                    adicionar novos treinos diários. Avalie o cão e finalize a etapa para avançar.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.infoBanner}>
+                  <MaterialDesignIcons
+                    name="information-outline"
+                    size={16}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={styles.infoBannerText}>
+                    Marque os exercícios cumpridos na sessão de hoje ({completedCount}/{exercises.length} - {progressPercent}%).
+                  </Text>
+                </View>
               )}
 
-              <View style={styles.finalizeRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.finalizeButton,
-                    styles.finalizeButtonApto,
-                    isMaxSessionsReached && { flex: 1 },
-                  ]}
-                  onPress={handleConfirmApto}
-                  disabled={submitting}
-                  activeOpacity={0.8}
-                >
-                  <FontAwesomeFreeSolid
-                    name="check"
-                    size={14}
-                    color={theme.colors.white}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={styles.finalizeButtonText}>
-                    {stage >= 4
-                      ? "Concluir Cão-Guia (Apto)"
-                      : `Aprovar Etapa ${stage} (Apto)`}
-                  </Text>
-                </TouchableOpacity>
+              {exercises.map((item) => {
+                const isChecked = Boolean(checks[item.key]);
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[
+                      styles.exerciseRow,
+                      isChecked && styles.exerciseRowChecked,
+                    ]}
+                    activeOpacity={0.75}
+                    onPress={() => handleToggle(item.key, !isChecked)}
+                  >
+                    <View pointerEvents="none">
+                      <CheckBox
+                        value={isChecked}
+                        onChangeChecked={(val) => handleToggle(item.key, val)}
+                        label={item.label}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
 
-                <TouchableOpacity
-                  style={[
-                    styles.finalizeButton,
-                    styles.finalizeButtonInapto,
-                  ]}
-                  onPress={handleConfirmInapto}
-                  disabled={submitting}
-                  activeOpacity={0.8}
-                >
-                  <MaterialDesignIcons
-                    name="close"
-                    size={16}
-                    color={theme.colors.white}
-                    style={{ marginRight: 4 }}
+              {/* BOTÕES DE AÇÃO */}
+              <View style={styles.actionsContainer}>
+                {(!isMaxSessionsReached || isTodaySessionRecorded) && (
+                  <Button
+                    text={
+                      submitting
+                        ? isTodaySessionRecorded
+                          ? "Atualizando..."
+                          : "Gravando..."
+                        : isTodaySessionRecorded
+                        ? `Atualizar Sessão de Hoje (${todaySessionNumber}/21)`
+                        : `Salvar Sessão Diária (${nextSessionNumber}/21)`
+                    }
+                    onPress={() => onSaveSession(stage, checks)}
+                    disabled={submitting}
                   />
-                  <Text style={styles.finalizeButtonText}>
-                    Inapto
-                  </Text>
-                </TouchableOpacity>
+                )}
+
+                <View style={styles.finalizeRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.finalizeButton,
+                      styles.finalizeButtonApto,
+                      isMaxSessionsReached && { flex: 1 },
+                    ]}
+                    onPress={handleConfirmApto}
+                    disabled={submitting}
+                    activeOpacity={0.8}
+                  >
+                    <FontAwesomeFreeSolid
+                      name="check"
+                      size={14}
+                      color={theme.colors.white}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={styles.finalizeButtonText}>
+                      {stage >= 4
+                        ? "Concluir Cão-Guia (Apto)"
+                        : `Aprovar Etapa ${stage} (Apto)`}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.finalizeButton,
+                      styles.finalizeButtonInapto,
+                    ]}
+                    onPress={handleConfirmInapto}
+                    disabled={submitting}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialDesignIcons
+                      name="close"
+                      size={16}
+                      color={theme.colors.white}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={styles.finalizeButtonText}>
+                      Inapto
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </ScrollView>
+            </ScrollView>
+          </View>
         </View>
-      </View>
+      </Modal>
 
       {/* MODAL PERSONALIZADO DE CONFIRMAÇÃO (APTO / INAPTO) */}
       <AlertModal />
-    </Modal>
+    </>
   );
 };
 

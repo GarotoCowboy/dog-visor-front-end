@@ -3,7 +3,7 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-nativ
 import MaterialDesignIcons from "@react-native-vector-icons/material-design-icons";
 import { theme } from "../../../../theme/theme";
 
-export type FilterTab = "TODOS" | "EM_TREINAMENTO" | "RELATORIOS";
+export type FilterTab = "TODOS" | "EM_TREINAMENTO" | "CONCLUIDO";
 
 interface TrainingFilterBarProps {
   searchQuery: string;
@@ -76,17 +76,17 @@ export const TrainingFilterBar: React.FC<TrainingFilterBarProps> = ({
         <TouchableOpacity
           style={[
             styles.tabChip,
-            activeTab === "RELATORIOS" && styles.tabChipActive,
+            activeTab === "CONCLUIDO" && styles.tabChipActive,
           ]}
-          onPress={() => onTabChange("RELATORIOS")}
+          onPress={() => onTabChange("CONCLUIDO")}
         >
           <Text
             style={[
               styles.tabChipText,
-              activeTab === "RELATORIOS" && styles.tabChipTextActive,
+              activeTab === "CONCLUIDO" && styles.tabChipTextActive,
             ]}
           >
-            Relatórios
+            Concluído
           </Text>
         </TouchableOpacity>
       </View>

@@ -69,15 +69,19 @@ export const CustomAlertComponent = ({
   const config = variantConfig[variant];
 
   const handleConfirm = () => {
+    onClose();
     if (onConfirm) {
       onConfirm();
-    } else {
-      onClose();
     }
   };
 
   return (
-    <Modal transparent visible={visible} animationType="fade">
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
         <View
           style={[

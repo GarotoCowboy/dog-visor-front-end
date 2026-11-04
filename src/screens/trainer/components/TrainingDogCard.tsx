@@ -32,10 +32,7 @@ export const TrainingDogCard: React.FC<TrainingDogCardProps> = ({
   const isInapto = item.status === TraningStatus.Inapto;
   const isFinished = isApto || isInapto;
   const sessionsCount = item.totalSessionsRecorded || 0;
-  const isStarted =
-    (item.currentStage && item.currentStage > 1) ||
-    Boolean(item.lastTrainingDate) ||
-    sessionsCount > 0;
+  const isStarted = true;
   const isMaxSessionsReached = sessionsCount >= 21;
 
   return (
@@ -101,6 +98,20 @@ export const TrainingDogCard: React.FC<TrainingDogCardProps> = ({
             </View>
           )}
         </View>
+
+        {/* TREINADOR RESPONSÁVEL (SE DISPONÍVEL) */}
+        {Boolean(item.trainerName) && (
+          <View style={styles.trainerRow}>
+            <MaterialDesignIcons
+              name="account-tie-outline"
+              size={14}
+              color="#4B5563"
+            />
+            <Text style={styles.trainerText} numberOfLines={1}>
+              Treinador(a): {item.trainerName}
+            </Text>
+          </View>
+        )}
 
         {/* LINHA DE ETAPA E SESSÕES DIÁRIAS */}
         <View style={styles.stageProgressRow}>
@@ -269,6 +280,18 @@ const styles = StyleSheet.create({
     color: "#D97706",
   },
   statusBadgeTextNotStarted: {
+    color: "#4B5563",
+  },
+  trainerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  trainerText: {
+    flex: 1,
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
+    fontSize: theme.typography.fontSize.xs,
     color: "#4B5563",
   },
   stageProgressRow: {

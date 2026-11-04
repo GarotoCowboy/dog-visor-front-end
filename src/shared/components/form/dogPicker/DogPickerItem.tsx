@@ -4,12 +4,14 @@ import MaterialDesignIcons from "@react-native-vector-icons/material-design-icon
 import { formatDogRace, IDogResponse } from "../../../../types/Dog";
 import { getDogImageSource } from "../../../../utils/dogAvatar";
 import { theme } from "../../../../../theme/theme";
+import { DogTestBadgeInfo } from "./types";
 
 interface DogPickerItemProps {
   dog: IDogResponse;
   isSelected: boolean;
   onSelect: (dog: IDogResponse) => void;
   isDogDisabled?: (dog: IDogResponse) => { disabled: boolean; reason?: string };
+  testBadge?: DogTestBadgeInfo;
 }
 
 export const DogPickerItem: React.FC<DogPickerItemProps> = ({
@@ -17,6 +19,7 @@ export const DogPickerItem: React.FC<DogPickerItemProps> = ({
   isSelected,
   onSelect,
   isDogDisabled,
+  testBadge,
 }) => {
   const disableCheck = isDogDisabled ? isDogDisabled(dog) : { disabled: false };
   const isItemDisabled = disableCheck.disabled;
@@ -67,6 +70,49 @@ export const DogPickerItem: React.FC<DogPickerItemProps> = ({
         <Text style={styles.itemDogBreed} numberOfLines={1}>
           {dog.race ? formatDogRace(dog.race) : "Raça não informada"}
         </Text>
+        {testBadge && (
+          <View
+            style={[
+              styles.testStatusBadge,
+              testBadge.status === "COMPLETED"
+                ? styles.testStatusCompleted
+                : testBadge.status === "IN_PROGRESS"
+                ? styles.testStatusInProgress
+                : styles.testStatusNotStarted,
+            ]}
+          >
+            <MaterialDesignIcons
+              name={
+                testBadge.status === "COMPLETED"
+                  ? "check-circle-outline"
+                  : testBadge.status === "IN_PROGRESS"
+                  ? "progress-clock"
+                  : "alert-circle-outline"
+              }
+              size={12}
+              color={
+                testBadge.status === "COMPLETED"
+                  ? "#15803D"
+                  : testBadge.status === "IN_PROGRESS"
+                  ? "#B45309"
+                  : "#DC2626"
+              }
+            />
+            <Text
+              style={[
+                styles.testStatusBadgeText,
+                testBadge.status === "COMPLETED"
+                  ? styles.testStatusTextCompleted
+                  : testBadge.status === "IN_PROGRESS"
+                  ? styles.testStatusTextInProgress
+                  : styles.testStatusTextNotStarted,
+              ]}
+              numberOfLines={1}
+            >
+              {testBadge.label}
+            </Text>
+          </View>
+        )}
         {isItemDisabled && disableCheck.reason && (
           <Text style={styles.disabledReasonText} numberOfLines={1}>
             {disableCheck.reason}
@@ -181,6 +227,41 @@ const styles = StyleSheet.create({
   },
   sexBadgeTextMale: {
     color: "#0369A1",
+  },
+  testStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  testStatusNotStarted: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  testStatusInProgress: {
+    backgroundColor: "#FEF3C7",
+  },
+  testStatusCompleted: {
+    backgroundColor: "#DCFCE7",
+  },
+  testStatusBadgeText: {
+    fontSize: 10,
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  testStatusTextNotStarted: {
+    color: "#DC2626",
+  },
+  testStatusTextInProgress: {
+    color: "#B45309",
+  },
+  testStatusTextCompleted: {
+    color: "#15803D",
   },
 });
 
