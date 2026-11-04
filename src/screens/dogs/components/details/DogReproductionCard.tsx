@@ -7,6 +7,10 @@ import { theme } from "../../../../../theme/theme";
 import { Card } from "../../../../shared/components/CardComponent";
 import { IDogResponse } from "../../../../types/Dog";
 import { IDogReproductionResponse } from "../../../../types/DogHealth";
+import {
+  getReproductionStatusInfo,
+  MANUAL_END_MARKER_REGEX,
+} from "../../../../utils/reproductionStatus";
 
 interface DogReproductionCardProps {
   dog: IDogResponse;
@@ -15,6 +19,7 @@ interface DogReproductionCardProps {
   loadingHeat: boolean;
   formatDate: (dateStr?: string) => string;
   onNavigateToReproduction: (openCreate: boolean) => void;
+  onEndHeat?: (item: IDogReproductionResponse) => void;
 }
 
 export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
@@ -24,7 +29,13 @@ export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
   loadingHeat,
   formatDate,
   onNavigateToReproduction,
+  onEndHeat,
 }) => {
+  const statusInfo = lastHeat ? getReproductionStatusInfo(lastHeat) : null;
+  const cleanObservations = lastHeat
+    ? (lastHeat.observations || "").replace(MANUAL_END_MARKER_REGEX, "").trim()
+    : "";
+
   return (
     <Card>
       <View style={styles.reproductionCard}>
@@ -59,8 +70,61 @@ export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
 
         {loadingHeat ? (
           <ActivityIndicator size="small" color="#BE185D" style={{ marginVertical: 12 }} />
-        ) : lastHeat ? (
+        ) : lastHeat && statusInfo ? (
           <View style={styles.heatDetailsBox}>
+            {/* BADGE DE STATUS AUTOMÁTICO */}
+            <View
+              style={[
+                styles.statusBanner,
+                {
+                  backgroundColor: statusInfo.badgeBgColor,
+                  borderColor: statusInfo.badgeBorderColor,
+                },
+              ]}
+            >
+              <View style={styles.statusBannerTop}>
+                <View style={styles.statusTitleRow}>
+                  <MaterialDesignIcons
+                    name={statusInfo.iconName as any}
+                    size={16}
+                    color={statusInfo.badgeTextColor}
+                  />
+                  <Text
+                    style={[
+                      styles.statusBadgeLabel,
+                      { color: statusInfo.badgeTextColor },
+                    ]}
+                  >
+                    {statusInfo.label}
+                  </Text>
+                </View>
+
+                {canEditDog && statusInfo.canEndManually && onEndHeat && (
+                  <TouchableOpacity
+                    style={styles.endHeatButton}
+                    onPress={() => onEndHeat(lastHeat)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialDesignIcons
+                      name="check-circle-outline"
+                      size={13}
+                      color="#BE185D"
+                    />
+                    <Text style={styles.endHeatButtonText}>Encerrar Cio</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <Text
+                style={[
+                  styles.statusDetailText,
+                  { color: statusInfo.badgeTextColor },
+                ]}
+              >
+                {statusInfo.detailText}
+              </Text>
+            </View>
+
             <View style={styles.heatRow}>
               <Text style={styles.heatLabel}>Último cio registrado:</Text>
               <Text style={styles.heatValue}>{formatDate(lastHeat.date)}</Text>
@@ -69,7 +133,16 @@ export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
             {lastHeat.expectedNextHeatDate ? (
               <View style={styles.heatRow}>
                 <Text style={styles.heatLabel}>Previsão do próximo cio:</Text>
-                <Text style={[styles.heatValue, { color: "#BE185D", fontWeight: "bold" }]}>
+                <Text
+                  style={[
+                    styles.heatValue,
+                    {
+                      color:
+                        statusInfo.status === "OVERDUE" ? "#B91C1C" : "#BE185D",
+                      fontWeight: "bold",
+                    },
+                  ]}
+                >
                   {formatDate(lastHeat.expectedNextHeatDate)}
                 </Text>
               </View>
@@ -84,9 +157,9 @@ export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
               </View>
             ) : null}
 
-            {lastHeat.observations ? (
+            {cleanObservations ? (
               <Text style={styles.heatObservations} numberOfLines={2}>
-                Obs: {lastHeat.observations}
+                Obs: {cleanObservations}
               </Text>
             ) : null}
 
@@ -94,20 +167,17 @@ export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
               <View style={styles.heatActionButtonsRow}>
                 <TouchableOpacity
                   style={styles.manageHeatButton}
-                  onPress={() => onNavigateToReproduction(true)}
-                  activeOpacity={0.8}
-                >
-                  <FontAwesomeFreeSolid name="plus" size={11} color="#BE185D" />
-                  <Text style={styles.manageHeatButtonText}>Registrar Novo Cio</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.historyHeatButton}
                   onPress={() => onNavigateToReproduction(false)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.historyHeatButtonText}>Ver Histórico</Text>
-                  <MaterialDesignIcons name="chevron-right" size={14} color="#6B7280" />
+                  <MaterialDesignIcons
+                    name="calendar-edit"
+                    size={13}
+                    color="#BE185D"
+                  />
+                  <Text style={styles.manageHeatButtonText}>
+                    Gerenciar / Atualizar Ciclo
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -167,7 +237,54 @@ const styles = StyleSheet.create({
     backgroundColor: "#FDF2F8",
     padding: 10,
     borderRadius: theme.borderRadius.sm,
+    gap: 6,
+  },
+  statusBanner: {
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     gap: 4,
+    marginBottom: 4,
+  },
+  statusBannerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  statusTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  statusBadgeLabel: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: theme.typography.fontSize.xs,
+  },
+  statusDetailText: {
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
+    fontSize: 11,
+  },
+  endHeatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#F472B6",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.full,
+  },
+  endHeatButtonText: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 10,
+    color: "#BE185D",
   },
   heatRow: {
     flexDirection: "row",
@@ -215,7 +332,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 8,
+    marginTop: 6,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "#FCE7F3",

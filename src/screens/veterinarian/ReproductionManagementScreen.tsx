@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -25,11 +25,19 @@ import {
   IDogReproductionResponse,
   IUpdateDogReproductionRequest,
 } from "../../types/DogHealth";
+import {
+  appendManualEndObservation,
+  getExpectedNextHeatDate,
+  parseLocalDate,
+} from "../../utils/reproductionStatus";
 import { ReproductionItemCard } from "./components/reproduction/ReproductionItemCard";
 import { CreateReproductionModal } from "./components/reproduction/CreateReproductionModal";
 import { EditReproductionModal } from "./components/reproduction/EditReproductionModal";
 import { ReproductionHeader } from "./components/reproduction/ReproductionHeader";
-import { ReproductionSummaryCards } from "./components/reproduction/ReproductionSummaryCards";
+import {
+  ReproductionFilterMode,
+  ReproductionSummaryCards,
+} from "./components/reproduction/ReproductionSummaryCards";
 import { ReproductionEmptyList } from "./components/reproduction/ReproductionEmptyList";
 
 export const ReproductionManagementScreen = () => {
@@ -42,9 +50,13 @@ export const ReproductionManagementScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [filterMode, setFilterMode] = useState<ReproductionFilterMode>("ALL");
 
   // Modais de Criação e Edição
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [modalDogOverride, setModalDogOverride] = useState<IDogResponse | undefined>(
+    undefined,
+  );
   const [editingItem, setEditingItem] = useState<IDogReproductionResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -57,7 +69,13 @@ export const ReproductionManagementScreen = () => {
       ]);
 
       if (reprodRes.status === "fulfilled" && Array.isArray(reprodRes.value)) {
-        setReproductions(reprodRes.value);
+        // Ordenar do mais recente para o mais antigo por data observada
+        const sorted = [...reprodRes.value].sort((a, b) => {
+          const da = parseLocalDate(a.date)?.getTime() ?? 0;
+          const db = parseLocalDate(b.date)?.getTime() ?? 0;
+          return db - da;
+        });
+        setReproductions(sorted);
       }
       if (dogsRes.status === "fulfilled" && Array.isArray(dogsRes.value)) {
         setDogs(dogsRes.value);
@@ -75,6 +93,7 @@ export const ReproductionManagementScreen = () => {
       loadData();
       if (preselectedDog && preselectedDog.sex?.toUpperCase() === "F") {
         if (route.params?.openCreate === true) {
+          setModalDogOverride(preselectedDog);
           setIsCreateModalOpen(true);
         } else {
           setSearch(preselectedDog.name || "");
@@ -97,11 +116,51 @@ export const ReproductionManagementScreen = () => {
     return dateStr;
   };
 
+  // Identifica o registro mais recente de cada cadela
+  const latestRecordByDogMap = useMemo(() => {
+    const map = new Map<string, IDogReproductionResponse>();
+    for (const item of reproductions) {
+      const key = item.dogId || item.dogsName || item.id;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, item);
+      } else {
+        const existingDate = parseLocalDate(existing.date)?.getTime() ?? 0;
+        const currentDate = parseLocalDate(item.date)?.getTime() ?? 0;
+        if (currentDate >= existingDate) {
+          map.set(key, item);
+        }
+      }
+    }
+    return map;
+  }, [reproductions]);
+
+  const latestRecordIds = useMemo(() => {
+    return new Set(Array.from(latestRecordByDogMap.values()).map((r) => r.id));
+  }, [latestRecordByDogMap]);
+
   const handleCreateReproduction = async (payload: ICreateDogReproductionRequest) => {
+    const alreadyExists = reproductions.some(
+      (r) =>
+        (r.dogId && payload.dogId && r.dogId === payload.dogId) ||
+        (r.dogsName &&
+          payload.dogsName &&
+          r.dogsName.trim().toLowerCase() === payload.dogsName.trim().toLowerCase()),
+    );
+    if (alreadyExists) {
+      showAlert(
+        "warning",
+        "Controle Já Ativo",
+        `A cadela "${payload.dogsName}" já possui um controle reprodutivo ativo. Edite o registro existente.`,
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
       await createDogReproductionService(payload);
       setIsCreateModalOpen(false);
+      setModalDogOverride(undefined);
       loadData();
       showAlert(
         "success",
@@ -144,6 +203,43 @@ export const ReproductionManagementScreen = () => {
     }
   };
 
+  const handleRequestEndHeat = (item: IDogReproductionResponse) => {
+    showConfirm(
+      "Encerrar Período de Cio",
+      `Deseja marcar o período de cio atual da cadela "${item.dogsName}" como encerrado? A previsão do próximo ciclo (${formatDate(item.expectedNextHeatDate)}) será mantida.`,
+      async () => {
+        try {
+          setLoading(true);
+          await updateDogReproductionService(item.id, {
+            date: item.date,
+            expectedNextHeatDate: item.expectedNextHeatDate,
+            cycleIntervalInMonths: item.cycleIntervalInMonths,
+            observations: appendManualEndObservation(item.observations),
+          });
+          await loadData();
+          showAlert(
+            "success",
+            "Cio Encerrado!",
+            `O período de cio de "${item.dogsName}" foi marcado como encerrado.`,
+          );
+        } catch (err: any) {
+          console.log("Erro ao encerrar cio:", err);
+          const message =
+            err?.response?.data?.message ||
+            "Não foi possível encerrar o período de cio.";
+          showAlert("error", "Erro ao Encerrar", message);
+        } finally {
+          setLoading(false);
+        }
+      },
+      { confirmText: "Encerrar Cio", cancelText: "Cancelar" },
+    );
+  };
+
+  const handleRegisterNewCycle = (item: IDogReproductionResponse) => {
+    setEditingItem(item);
+  };
+
   const handleRequestDelete = (item: IDogReproductionResponse) => {
     showConfirm(
       "Excluir Registro",
@@ -171,8 +267,24 @@ export const ReproductionManagementScreen = () => {
     );
   };
 
-  // Filtragem pela busca
+  const isWithinNext30Days = (r: IDogReproductionResponse): boolean => {
+    const nextDate = getExpectedNextHeatDate(r);
+    if (!nextDate) return false;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffDays = Math.ceil(
+      (nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    return diffDays >= 0 && diffDays <= 30;
+  };
+
+  // Filtragem pela busca e pelo card selecionado (Todos vs Próximos 30 Dias)
   const filteredReproductions = reproductions.filter((item) => {
+    if (filterMode === "NEXT_30_DAYS") {
+      if (!latestRecordIds.has(item.id) || !isWithinNext30Days(item)) {
+        return false;
+      }
+    }
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -182,32 +294,27 @@ export const ReproductionManagementScreen = () => {
     );
   });
 
-  // Estatísticas de resumo
-  const monitoredFemalesCount = new Set(reproductions.map((r) => r.dogId)).size;
-  const next30DaysCount = reproductions.filter((r) => {
-    if (!r.expectedNextHeatDate) return false;
-    const parts = r.expectedNextHeatDate.split("-");
-    if (parts.length !== 3) return false;
-    const d = new Date(
-      parseInt(parts[0], 10),
-      parseInt(parts[1], 10) - 1,
-      parseInt(parts[2], 10),
-    );
-    const now = new Date();
-    const diff = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return diff <= 30 && diff >= 0;
-  }).length;
+  // Estatísticas de resumo baseadas no ciclo mais recente de cada cadela
+  const latestRecords = Array.from(latestRecordByDogMap.values());
+  const monitoredFemalesCount = latestRecords.length;
+  const next30DaysCount = latestRecords.filter(isWithinNext30Days).length;
 
   return (
     <View style={styles.container}>
       {/* 1. HEADER: TÍTULO E BOTÃO REGISTRAR */}
-      <ReproductionHeader onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+      <ReproductionHeader
+        onOpenCreateModal={() => {
+          setModalDogOverride(preselectedDog);
+          setIsCreateModalOpen(true);
+        }}
+      />
 
       {/* 2. CARDS DE RESUMO */}
       <ReproductionSummaryCards
         monitoredFemalesCount={monitoredFemalesCount}
         next30DaysCount={next30DaysCount}
-        totalRecords={reproductions.length}
+        filterMode={filterMode}
+        onSelectFilter={setFilterMode}
       />
 
       {/* 3. BARRA DE PESQUISA */}
@@ -232,8 +339,11 @@ export const ReproductionManagementScreen = () => {
           renderItem={({ item }) => (
             <ReproductionItemCard
               item={item}
+              isLatestForDog={latestRecordIds.has(item.id)}
               onEdit={(rec) => setEditingItem(rec)}
               onRequestDelete={handleRequestDelete}
+              onEndHeat={handleRequestEndHeat}
+              onRegisterNewCycle={handleRegisterNewCycle}
               formatDate={formatDate}
             />
           )}
@@ -253,11 +363,15 @@ export const ReproductionManagementScreen = () => {
       {/* MODAL DE CADASTRO DE CIO */}
       <CreateReproductionModal
         visible={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setModalDogOverride(undefined);
+        }}
         onSubmit={handleCreateReproduction}
         submitting={submitting}
         dogs={dogs}
-        preselectedDog={preselectedDog}
+        existingReproductions={reproductions}
+        preselectedDog={modalDogOverride ?? preselectedDog}
         onValidationAlert={(title, message) =>
           showAlert("warning", title, message)
         }

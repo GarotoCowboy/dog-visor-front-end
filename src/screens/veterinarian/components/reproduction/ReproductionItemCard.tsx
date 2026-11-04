@@ -6,51 +6,55 @@ import { theme } from "../../../../../theme/theme";
 import { Card } from "../../../../shared/components/CardComponent";
 import { formatDogRace } from "../../../../types/Dog";
 import { IDogReproductionResponse } from "../../../../types/DogHealth";
+import {
+  formatLocalDateBR,
+  getExpectedNextHeatDate,
+  getReproductionStatusInfo,
+  MANUAL_END_MARKER_REGEX,
+} from "../../../../utils/reproductionStatus";
 
 interface ReproductionItemCardProps {
   item: IDogReproductionResponse;
+  isLatestForDog?: boolean;
   onEdit: (item: IDogReproductionResponse) => void;
   onRequestDelete: (item: IDogReproductionResponse) => void;
+  onEndHeat?: (item: IDogReproductionResponse) => void;
+  onRegisterNewCycle?: (item: IDogReproductionResponse) => void;
   formatDate: (dateStr?: string) => string;
 }
 
 export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
   item,
+  isLatestForDog = true,
   onEdit,
   onRequestDelete,
+  onEndHeat,
+  onRegisterNewCycle,
   formatDate,
 }) => {
-  // Verificar se a data prevista esta proxima (dentro de 30 dias) ou vencida
-  const isApproaching = (() => {
-    if (!item.expectedNextHeatDate) return false;
-    const parts = item.expectedNextHeatDate.split("-");
-    if (parts.length !== 3) return false;
-    const nextDate = new Date(
-      parseInt(parts[0], 10),
-      parseInt(parts[1], 10) - 1,
-      parseInt(parts[2], 10),
-    );
-    const now = new Date();
-    const diffDays = Math.ceil(
-      (nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    return diffDays <= 30 && diffDays >= -15;
-  })();
+  const statusInfo = getReproductionStatusInfo(item);
+  const cleanObservations = (item.observations || "")
+    .replace(MANUAL_END_MARKER_REGEX, "")
+    .trim();
 
   return (
     <View style={styles.cardWrapper}>
       <Card>
         <View style={styles.cardInnerContent}>
-          {/* BARRA LATERAL ROSA / DESTAQUE */}
+          {/* BARRA LATERAL DE DESTAQUE SEGUNDO O STATUS */}
           <View
             style={[
               styles.colorBar,
-              { backgroundColor: isApproaching ? "#BE185D" : "#EC4899" },
+              {
+                backgroundColor: isLatestForDog
+                  ? statusInfo.accentColor
+                  : "#D1D5DB",
+              },
             ]}
           />
 
           <View style={styles.cardBody}>
-            {/* TOPO: NOME DA CADELA + BOTOES EDITAR / EXCLUIR */}
+            {/* TOPO: NOME DA CADELA + BADGE DE STATUS + BOTOES EDITAR / EXCLUIR */}
             <View style={styles.cardHeader}>
               <View style={styles.dogNameRow}>
                 <MaterialDesignIcons
@@ -58,9 +62,11 @@ export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
                   size={18}
                   color="#BE185D"
                 />
-                <Text style={styles.dogNameText}>{item.dogsName}</Text>
+                <Text style={styles.dogNameText} numberOfLines={1}>
+                  {item.dogsName}
+                </Text>
                 {item.dogsBreed ? (
-                  <Text style={styles.breedText}>
+                  <Text style={styles.breedText} numberOfLines={1}>
                     ({formatDogRace(item.dogsBreed)})
                   </Text>
                 ) : null}
@@ -93,6 +99,91 @@ export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
               </View>
             </View>
 
+            {/* FAIXA DE STATUS AUTOMÁTICO DO CICLO */}
+            {isLatestForDog ? (
+              <View
+                style={[
+                  styles.statusBanner,
+                  {
+                    backgroundColor: statusInfo.badgeBgColor,
+                    borderColor: statusInfo.badgeBorderColor,
+                  },
+                ]}
+              >
+                <View style={styles.statusBannerTop}>
+                  <View style={styles.statusBadgeTitleRow}>
+                    <MaterialDesignIcons
+                      name={statusInfo.iconName as any}
+                      size={16}
+                      color={statusInfo.badgeTextColor}
+                    />
+                    <Text
+                      style={[
+                        styles.statusBadgeLabel,
+                        { color: statusInfo.badgeTextColor },
+                      ]}
+                    >
+                      {statusInfo.label}
+                    </Text>
+                  </View>
+
+                  {/* BOTÃO MANUAL PARA ENCERRAR CIO ATIVO */}
+                  {statusInfo.canEndManually && onEndHeat && (
+                    <TouchableOpacity
+                      style={styles.endHeatButton}
+                      onPress={() => onEndHeat(item)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialDesignIcons
+                        name="check-circle-outline"
+                        size={13}
+                        color="#BE185D"
+                      />
+                      <Text style={styles.endHeatButtonText}>Encerrar Cio</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* BOTÃO RÁPIDO QUANDO PREVISÃO ESTÁ VENCIDA */}
+                  {statusInfo.isOverdue && onRegisterNewCycle && (
+                    <TouchableOpacity
+                      style={styles.renewCycleButton}
+                      onPress={() => onRegisterNewCycle(item)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialDesignIcons
+                        name="pencil"
+                        size={12}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.renewCycleButtonText}>
+                        Atualizar Ciclo
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <Text
+                  style={[
+                    styles.statusDetailText,
+                    { color: statusInfo.badgeTextColor },
+                  ]}
+                >
+                  {statusInfo.detailText}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.historyBadgeRow}>
+                <MaterialDesignIcons
+                  name="history"
+                  size={13}
+                  color="#6B7280"
+                />
+                <Text style={styles.historyBadgeText}>
+                  Registro histórico anterior
+                </Text>
+              </View>
+            )}
+
             {/* DATAS: CIO OBSERVADO & PREVISAO DO PROXIMO */}
             <View style={styles.datesGrid}>
               <View style={styles.dateBlock}>
@@ -112,12 +203,25 @@ export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
                   <MaterialDesignIcons
                     name="calendar-clock"
                     size={14}
-                    color={isApproaching ? "#BE185D" : theme.colors.text}
+                    color={
+                      statusInfo.status === "OVERDUE"
+                        ? "#B91C1C"
+                        : statusInfo.status === "APPROACHING"
+                        ? "#B45309"
+                        : theme.colors.text
+                    }
                   />
                   <Text
                     style={[
                       styles.dateLabel,
-                      isApproaching && { color: "#BE185D", fontWeight: "bold" },
+                      statusInfo.status === "OVERDUE" && {
+                        color: "#B91C1C",
+                        fontWeight: "bold",
+                      },
+                      statusInfo.status === "APPROACHING" && {
+                        color: "#B45309",
+                        fontWeight: "bold",
+                      },
                     ]}
                   >
                     Próximo Previsto:
@@ -126,10 +230,24 @@ export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
                 <Text
                   style={[
                     styles.dateValue,
-                    isApproaching && { color: "#BE185D", fontWeight: "bold" },
+                    statusInfo.status === "OVERDUE" && {
+                      color: "#B91C1C",
+                      fontWeight: "bold",
+                    },
+                    statusInfo.status === "APPROACHING" && {
+                      color: "#B45309",
+                      fontWeight: "bold",
+                    },
                   ]}
                 >
-                  {formatDate(item.expectedNextHeatDate)}
+                  {item.expectedNextHeatDate
+                    ? formatDate(item.expectedNextHeatDate)
+                    : (() => {
+                        const fallbackNext = getExpectedNextHeatDate(item);
+                        return fallbackNext
+                          ? formatLocalDateBR(fallbackNext)
+                          : formatDate(undefined);
+                      })()}
                 </Text>
               </View>
             </View>
@@ -149,7 +267,7 @@ export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
             ) : null}
 
             {/* OBSERVACOES CLINICAS */}
-            {item.observations ? (
+            {cleanObservations ? (
               <View style={styles.observationsBox}>
                 <MaterialDesignIcons
                   name="clipboard-text-outline"
@@ -157,9 +275,7 @@ export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
                   color={theme.colors.text}
                   style={{ marginTop: 2 }}
                 />
-                <Text style={styles.observationsText}>
-                  {item.observations}
-                </Text>
+                <Text style={styles.observationsText}>{cleanObservations}</Text>
               </View>
             ) : null}
           </View>
@@ -203,6 +319,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold,
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.text,
+    flexShrink: 1,
   },
   breedText: {
     fontFamily: theme.typography.fontFamily.regular,
@@ -216,6 +333,78 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: 4,
+  },
+  statusBanner: {
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  statusBannerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  statusBadgeTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  statusBadgeLabel: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: theme.typography.fontSize.xs,
+  },
+  statusDetailText: {
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: theme.typography.fontWeight.medium,
+    fontSize: 11,
+  },
+  endHeatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#F472B6",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.full,
+  },
+  endHeatButtonText: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 10,
+    color: "#BE185D",
+  },
+  renewCycleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#DC2626",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.full,
+  },
+  renewCycleButtonText: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 10,
+    color: "#FFFFFF",
+  },
+  historyBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  historyBadgeText: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 11,
+    color: "#6B7280",
+    fontStyle: "italic",
   },
   datesGrid: {
     flexDirection: "row",

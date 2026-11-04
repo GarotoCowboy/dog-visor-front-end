@@ -16,7 +16,10 @@ import { theme } from "../../../../../theme/theme";
 import { Button } from "../../../../shared/components/ButtonComponent";
 import FormComponent, { DogPickerField } from "../../../../shared/components/FormComponent";
 import { formatDogRace, IDogResponse } from "../../../../types/Dog";
-import { ICreateDogReproductionRequest } from "../../../../types/DogHealth";
+import {
+  ICreateDogReproductionRequest,
+  IDogReproductionResponse,
+} from "../../../../types/DogHealth";
 
 interface CreateReproductionModalProps {
   visible: boolean;
@@ -24,6 +27,7 @@ interface CreateReproductionModalProps {
   onSubmit: (payload: ICreateDogReproductionRequest) => Promise<void>;
   submitting: boolean;
   dogs: IDogResponse[];
+  existingReproductions?: IDogReproductionResponse[];
   preselectedDog?: IDogResponse;
   onValidationAlert: (title: string, message: string) => void;
 }
@@ -34,6 +38,7 @@ export const CreateReproductionModal: React.FC<CreateReproductionModalProps> = (
   onSubmit,
   submitting,
   dogs,
+  existingReproductions = [],
   preselectedDog,
   onValidationAlert,
 }) => {
@@ -43,12 +48,27 @@ export const CreateReproductionModal: React.FC<CreateReproductionModalProps> = (
   const [observations, setObservations] = useState("");
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
 
-  // Filtrar apenas cadelas femeas
-  const femaleDogs = dogs.filter((d) => d.sex?.toUpperCase() === "F");
+  const hasActiveRecord = (d: IDogResponse) =>
+    existingReproductions.some(
+      (r) =>
+        (r.dogId && d.ID && r.dogId === d.ID) ||
+        (r.dogsName &&
+          d.name &&
+          r.dogsName.trim().toLowerCase() === d.name.trim().toLowerCase()),
+    );
+
+  // Filtrar apenas cadelas fêmeas que ainda NÃO possuem controle reprodutivo ativo
+  const femaleDogs = dogs.filter(
+    (d) => d.sex?.toUpperCase() === "F" && !hasActiveRecord(d),
+  );
 
   useEffect(() => {
     if (visible) {
-      if (preselectedDog && preselectedDog.sex?.toUpperCase() === "F") {
+      if (
+        preselectedDog &&
+        preselectedDog.sex?.toUpperCase() === "F" &&
+        !hasActiveRecord(preselectedDog)
+      ) {
         setSelectedDog(preselectedDog);
       } else if (femaleDogs.length === 1) {
         setSelectedDog(femaleDogs[0]);
@@ -59,7 +79,7 @@ export const CreateReproductionModal: React.FC<CreateReproductionModalProps> = (
       setCycleInterval("6");
       setObservations("");
     }
-  }, [visible, preselectedDog]);
+  }, [visible, preselectedDog, existingReproductions.length]);
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -103,7 +123,15 @@ export const CreateReproductionModal: React.FC<CreateReproductionModalProps> = (
     if (!selectedDog) {
       onValidationAlert(
         "Cadela Obrigatória",
-        "Por favor, selecione uma cadela fêmea para registrar o cio.",
+        "Por favor, selecione uma cadela fêmea disponível para registrar o cio.",
+      );
+      return;
+    }
+
+    if (hasActiveRecord(selectedDog)) {
+      onValidationAlert(
+        "Controle Já Ativo",
+        `A cadela "${selectedDog.name}" já possui um controle reprodutivo cadastrado. Edite o registro existente.`,
       );
       return;
     }
@@ -153,14 +181,14 @@ export const CreateReproductionModal: React.FC<CreateReproductionModalProps> = (
               label="Cadela (Fêmea) *"
               placeholder={
                 femaleDogs.length === 0
-                  ? "Nenhuma fêmea cadastrada"
+                  ? "Todas as fêmeas já possuem controle ativo"
                   : "Selecione a cadela..."
               }
               dogs={femaleDogs}
               selectedDog={selectedDog}
               onSelectDog={(dog) => setSelectedDog(dog)}
               modalTitle="Selecionar Cadela"
-              modalSubtitle="Selecione uma fêmea para registrar o cio / reprodução"
+              modalSubtitle="Apenas fêmeas sem controle reprodutivo ativo são exibidas"
               required
             />
 
