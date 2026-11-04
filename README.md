@@ -15,7 +15,9 @@ O aplicativo consome a arquitetura de microsserviços Java / Spring Boot do **Do
 - **Cloud Gateway:** Roteamento unificado e segurança das requisições HTTP e WebSockets.
 - **Service User:** Autenticação JWT, gerenciamento de perfil e permissões de usuários/colaboradores.
 - **Service DogManagement:** Cadastro, listagem e acompanhamento das informações dos cães.
-- **Service DogHealth:** Prontuário clínico, consultas, cirurgias, partos, pesagens e gestão farmacêutica.
+- **Service DogHealth:** Prontuário clínico, consultas, cirurgias, partos, pesagens, massagens, planos de alimentação, controle reprodutivo e gestão farmacêutica.
+- **Service DogTraining:** Gestão das 4 etapas do treinamento de cão-guia, testes de aptidão Volhard e avaliações comportamentais (Behavior Checklist).
+- **Service Notification:** Central de avisos, alertas clínicos e prescrições em tempo real via WebSocket.
 - **Service Audit & RabbitMQ:** Rastreabilidade e logs de ações no sistema.
 
 ---
@@ -23,19 +25,29 @@ O aplicativo consome a arquitetura de microsserviços Java / Spring Boot do **Do
 ## 🚀 Funcionalidades Principais
 
 ### 🏢 Módulo do Coordenador (`ROLE_COORDINATOR`)
-- **Gestão de Colaboradores:** Listagem de membros da equipe, alteração de cargos/permissões e ativação/desativação de contas.
+- **Gestão de Colaboradores:** Cadastro e listagem de membros da equipe, alteração de cargos/permissões e ativação/desativação de contas.
 - **Controle de Estoque de Ração:** Cadastro de lotes, incremento/baixa de estoque em kg, alertas de estoque mínimo e estimativa preditiva de consumo diário e dias restantes.
-- **Painel de Ações Rápidas (Home):** Indicadores do centro, alertas em tempo real e atalhos operacionais.
+- **Painel de Ações Rápidas (Home):** Indicadores em tempo real (colaboradores ativos, cães ativos, estoque total de ração em kg e previsão do próximo cio) e atalhos operacionais.
 
 ### 🩺 Módulo do Veterinário (`ROLE_VETERINARIAN`)
-- **Gestão de Medicamentos:** Cadastro de medicamentos veterinários, controle de estoque (comprimidos, ml, doses) e registro de administrações por cão.
+- **Gestão de Medicamentos:** Cadastro de medicamentos veterinários, controle de estoque (comprimidos, ml, doses), prescrições e registro de administrações por cão.
+- **Controle Reprodutivo e Ciclo de Cio:** Monitoramento de matrizes fêmeas (com bloqueio de cadastros duplicados), cálculo automático de status do ciclo (`Em Cio Ativo`, `Próximo em X dias`, `Previsão Vencida`, `Cio Encerrado`), encerramento manual do cio, atualização de ciclo e filtro rápido para cios previstos nos próximos 30 dias.
+- **Planos de Alimentação:** Criação e gestão de planos alimentares individuais com horários, porções e tipo de ração vinculada.
 - **Agenda e Procedimentos Clínicos:** Agendamento e registro de consultas normais, atendimentos de emergência, cirurgias e partos.
-- **Prontuário e Histórico de Saúde:** Acompanhamento de pesagem, histórico médico e tratamentos em andamento.
+- **Prontuário e Histórico de Saúde:** Acompanhamento de pesagem, sessões de massagem, histórico médico e tratamentos em andamento.
+
+### 🦮 Módulo do Treinador / Adestrador (`ROLE_TRAINER`)
+- **Gestão de Treinamento (Etapas 1 a 4):** Registro diário de sessões (até 21 sessões por etapa), aprovação (`Apto`) ou encerramento (`Inapto`) por etapa, histórico completo de evolução e **suporte Offline-First** com fila de sincronização automática.
+- **Teste de Aptidão Volhard:** Aplicação dos 9 subtestes comportamentais e dos 6 itens de estrutura física com ilustrações anatômicas de referência, diagnóstico automático do temperamento e destaque visual em laranja (`Não feito`) para itens pendentes.
+- **Teste Comportamental (Behavior Checklist):** Avaliação estruturada dos 51 aspectos comportamentais com busca rápida, progresso automático e destaque visual em laranja (`Não feito`) para itens ainda não preenchidos.
+
+### 🐾 Módulo do Colaborador (`ROLE_COLLABORATOR`)
+- **Cuidados de Filhotes:** Listagem automática de filhotes (< 12 meses), indicadores de quantidade e peso médio, registro rápido de **Pesagem** (em kg) e **Sessões de Massagem** com observações.
 
 ### 👥 Recursos Compartilhados
-- **Gestão dos Cães:** Cadastro de novos cães, visualização de perfil detalhado, status do animal e busca com filtros.
-- **Central de Notificações em Tempo Real:** Notificações via WebSocket sobre alertas críticos de estoque, medicamentos e agendamentos.
-- **Perfil do Usuário:** Visualização dos dados de cadastro, edição de informações e alteração segura de senha.
+- **Gestão e Ficha Completa dos Cães:** Cadastro de novos cães, visualização de prontuário detalhado (identidade, saúde, pesagem/massagem, controle reprodutivo, treinamento e testes Volhard/Behavior), alteração de status do animal e busca com filtros.
+- **Central de Notificações e Prescrições em Tempo Real:** Notificações via WebSocket sobre alertas críticos de estoque, medicamentos, prescrições e agendamentos, com confirmação de conclusão de tarefas.
+- **Perfil do Usuário:** Visualização dos dados de cadastro, informações profissionais e contato.
 - **Navegação Dinâmica (RBAC):** As abas e rotas da aplicação se adaptam dinamicamente de acordo com o nível de acesso do usuário autenticado.
 
 ---
@@ -56,22 +68,27 @@ O aplicativo consome a arquitetura de microsserviços Java / Spring Boot do **Do
 
 ```text
 dog-visor-front-end/
-├── assets/                  # Imagens, logos, ícones e mídias visuais
+├── assets/                  # Imagens, logos, ícones e ilustrações anatômicas
 ├── src/
-│   ├── consts/              # Constantes de telas, rotas e ícones
-│   ├── hooks/               # Custom hooks React
-│   ├── navigation/          # Configuração de StackNavigator e TabNavigator
+│   ├── consts/              # Constantes de telas, rotas e ícones de cães
+│   ├── hooks/               # Custom hooks React (alertas, estados)
+│   ├── navigation/          # Configuração de StackNavigator e TabNavigator (RBAC)
 │   ├── screens/             # Telas divididas por domínio de acesso
 │   │   ├── auth/            # Login e autenticação
-│   │   ├── coordinator/     # Telas e componentes do Coordenador
-│   │   ├── veterinarian/    # Telas e componentes do Veterinário
-│   │   ├── shared/          # Telas compartilhadas (Cães, Perfil, Notificações)
+│   │   ├── colaborator/     # Painel de cuidados de filhotes (pesagem e massagem)
+│   │   ├── coordinator/     # Gestão de colaboradores, rações e indicadores rápidos
+│   │   ├── dogs/            # Listagem, cadastro e prontuário detalhado dos cães
+│   │   ├── notifications/   # Central de avisos e prescrições em tempo real
+│   │   ├── profile/         # Perfil do usuário autenticado
+│   │   ├── trainer/         # Gestão de treinamento (4 etapas) e testes Volhard/Behavior
+│   │   ├── veterinarian/    # Medicamentos, agenda clínica, alimentação e reprodução
 │   │   └── SplashScreen.tsx # Tela de carregamento e validação de sessão
-│   ├── service/             # Configuração da API Axios e WebSocket
-│   ├── shared/              # Componentes reutilizáveis (Botões, Modais, Alertas)
-│   ├── theme/               # Paleta de cores, tipografia e estilos globais
-│   ├── types/               # Tipagens e interfaces TypeScript (DOG, User, Ration, etc.)
+│   ├── service/             # Serviços da API Axios, WebSocket e sincronização offline
+│   ├── shared/              # Componentes reutilizáveis (Botões, Modais, Seletor de Cães)
+│   ├── types/               # Tipagens e interfaces TypeScript (Dog, Training, Health, User)
+│   ├── utils/               # Utilitários de idade, avatares e cálculo de ciclo reprodutivo
 │   └── routes.tsx           # Ponto de entrada das rotas da aplicação
+├── theme/                   # Paleta de cores, tipografia e estilos globais
 ├── .env                     # Variáveis de ambiente da aplicação
 ├── App.tsx                  # Componente raiz
 └── package.json             # Dependências e scripts do projeto
@@ -130,10 +147,10 @@ npm run web       # Iniciar versão Web
 
 | Role | Descrição |
 | :--- | :--- |
-| `ROLE_COORDINATOR` | Acesso total à gestão de colaboradores, ração, cães e relatórios. |
-| `ROLE_VETERINARIAN` | Acesso a medicamentos, prontuários, procedimentos clínicos e agenda. |
-| `ROLE_TRAINER` | Acesso a rotinas de acompanhamento e treinamento dos cães. |
-| `ROLE_COLLABORATOR` | Acesso operacional básico e consulta de cães e avisos. |
+| `ROLE_COORDINATOR` | Gestão de colaboradores, estoque de ração, indicadores do centro e cadastro de cães. |
+| `ROLE_VETERINARIAN` | Gestão de medicamentos, prescrições, controle reprodutivo/cio, planos alimentares e agenda clínica. |
+| `ROLE_TRAINER` | Gestão das 4 etapas de treinamento de cão-guia (online/offline) e aplicação dos testes Volhard e Behavior. |
+| `ROLE_COLLABORATOR` | Cuidados diários de filhotes (registro de pesagem e massagem), consulta de cães e central de avisos/prescrições. |
 
 ---
 
