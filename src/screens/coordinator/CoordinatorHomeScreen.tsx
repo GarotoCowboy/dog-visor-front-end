@@ -55,13 +55,6 @@ export const CoordinatorHomeScreen = () => {
               Adicionar novo membro à equipe de colaboradores
             </Text>
           </Button>
-
-          <Button onPress={() => (navigation as any).navigate(SCREENS.TRAINING_MANAGEMENT_SCREEN)} variant="outline">
-            <Text style={styles.buttonTitle}>Gestão de Treinamento</Text>
-            <Text style={styles.buttonSubtitle}>
-              Acompanhar etapas de treino e evolução dos cães
-            </Text>
-          </Button>
         </View>
       </Card>
     </ScrollView>
