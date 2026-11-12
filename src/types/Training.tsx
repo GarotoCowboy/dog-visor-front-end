@@ -6,6 +6,7 @@ export enum TraningStatus {
 export interface ITrainingResponse {
   id: string;
   trainerId: string;
+  trainerName?: string;
   dogId: string;
   dogsName: string;
   dogsBreed: string;
@@ -58,6 +59,7 @@ export interface ITrainingReportResponse {
   dogsName: string;
   dogsBreed: string;
   trainerId: string;
+  trainerName?: string;
   currentStage: number;
   status: TraningStatus | null;
   stage1: IStageReport<IStage1Response>;
@@ -533,6 +535,7 @@ export interface IVolhardTestResponse {
 export interface IDogTest {
   id: string;
   dogId: string;
+  trainerId?: string;
   dogsName: string;
   dogsBreed: string;
   avatarKey?: string;

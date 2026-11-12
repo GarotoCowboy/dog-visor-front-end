@@ -5,21 +5,9 @@ import MaterialDesignIcons from "@react-native-vector-icons/material-design-icon
 
 import { theme } from "../../../../theme/theme";
 import { Card } from "../../../shared/components/CardComponent";
-import {
-  CharacteristicCategory,
-  IDogTest,
-  TestStatus,
-  TestType,
-} from "../../../types/Training";
-import { femaleDogIcons, maleDogIcons } from "../../../consts/dogIcons";
-
-const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
-  (acc, item) => {
-    acc[item.key] = item.image;
-    return acc;
-  },
-  {} as Record<string, any>,
-);
+import { IDogTest, TestStatus, TestType } from "../../../types/Training";
+import { getDogImageSource } from "../../../utils/dogAvatar";
+import { TestCardScoreRow, TestCardStatusBadge } from "./testCard";
 
 interface TestItemCardProps {
   test: IDogTest;
@@ -30,29 +18,14 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
   test,
   onPress,
 }) => {
-  const imageSource =
-    (test.avatarKey && avatarMap[test.avatarKey]) ||
-    maleDogIcons[0]?.image ||
-    femaleDogIcons[0]?.image;
+  const imageSource = getDogImageSource(test.avatarKey);
   const isCompleted = test.status === TestStatus.COMPLETED;
   const isInProgress =
     !isCompleted &&
     ((test.completedCount ?? 0) > 0 ||
-      (test.score && test.score.toLowerCase().includes("andamento")) ||
-      (test.description && test.description.toLowerCase().includes("andamento")));
+      Boolean(test.score && test.score.toLowerCase().includes("andamento")) ||
+      Boolean(test.description && test.description.toLowerCase().includes("andamento")));
   const isVolhard = test.type === TestType.VOLHARD;
-
-  const statusLabel = isCompleted
-    ? "Concluído"
-    : isInProgress
-    ? "Em andamento"
-    : "Não feito";
-
-  const statusIcon = isCompleted
-    ? "check-circle-outline"
-    : isInProgress
-    ? "clock-outline"
-    : "alert-circle-outline";
 
   let displayScore = test.score || "";
   if (isInProgress) {
@@ -65,6 +38,14 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
     }
   }
 
+  const testTitle = test.title
+    ? test.title
+        .replace("Teste de Aptidão Volhard", "Teste Volhard")
+        .replace("Teste Comportamental", "Teste Behavior")
+    : isVolhard
+    ? "Teste Volhard"
+    : "Teste Behavior";
+
   return (
     <TouchableOpacity
       activeOpacity={onPress ? 0.78 : 1}
@@ -73,7 +54,7 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
     >
       <Card>
         <View style={styles.cardContainer}>
-          {/* CABEÇALHO: AVATAR (FOTO DO CÃO), NOME, RAÇA E BADGE DE STATUS */}
+          {/* CABEÇALHO: AVATAR, NOME, RAÇA E BADGE DE STATUS */}
           <View style={styles.headerRow}>
             <View style={styles.avatarWrapper}>
               {imageSource ? (
@@ -102,40 +83,10 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
               </Text>
             </View>
 
-            <View
-              style={[
-                styles.statusBadge,
-                isCompleted
-                  ? styles.statusBadgeCompleted
-                  : isInProgress
-                  ? styles.statusBadgeInProgress
-                  : styles.statusBadgePending,
-              ]}
-            >
-              <MaterialDesignIcons
-                name={statusIcon}
-                size={14}
-                color={
-                  isCompleted
-                    ? "#15803D"
-                    : isInProgress
-                    ? "#B45309"
-                    : "#DC2626"
-                }
-              />
-              <Text
-                style={[
-                  styles.statusBadgeText,
-                  isCompleted
-                    ? styles.statusBadgeTextCompleted
-                    : isInProgress
-                    ? styles.statusBadgeTextInProgress
-                    : styles.statusBadgeTextPending,
-                ]}
-              >
-                {statusLabel}
-              </Text>
-            </View>
+            <TestCardStatusBadge
+              isCompleted={isCompleted}
+              isInProgress={isInProgress}
+            />
           </View>
 
           {/* TIPO DE TESTE E DATA */}
@@ -151,13 +102,7 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {test.title
-                  ? test.title
-                      .replace("Teste de Aptidão Volhard", "Teste Volhard")
-                      .replace("Teste Comportamental", "Teste Behavior")
-                  : isVolhard
-                  ? "Teste Volhard"
-                  : "Teste Behavior"}
+                {testTitle}
               </Text>
             </View>
 
@@ -201,41 +146,11 @@ export const TestItemCard: React.FC<TestItemCardProps> = ({
           )}
 
           {/* NOTA / SCORE / PROGRESSO */}
-          {Boolean(displayScore) && (
-            <View style={styles.scoreRow}>
-              <View style={styles.scoreLeftWrapper}>
-                <Text style={styles.scoreLabel}>
-                  {isCompleted ? "Resultado:" : "Progresso:"}
-                </Text>
-                <Text
-                  style={styles.scoreValue}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {displayScore}
-                </Text>
-              </View>
-              {onPress && (
-                <View style={styles.actionButtonWrapper}>
-                  <Text
-                    style={{
-                      fontFamily: theme.typography.fontFamily.bold,
-                      fontWeight: theme.typography.fontWeight.bold,
-                      fontSize: 11,
-                      color: isCompleted ? "#2E6B65" : "#B45309",
-                    }}
-                  >
-                    {isCompleted ? "Ver / Editar" : "Continuar"}
-                  </Text>
-                  <MaterialDesignIcons
-                    name="chevron-right"
-                    size={16}
-                    color={isCompleted ? "#2E6B65" : "#B45309"}
-                  />
-                </View>
-              )}
-            </View>
-          )}
+          <TestCardScoreRow
+            isCompleted={isCompleted}
+            displayScore={displayScore}
+            hasOnPress={Boolean(onPress)}
+          />
         </View>
       </Card>
     </TouchableOpacity>
@@ -285,57 +200,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.regular,
     fontSize: theme.typography.fontSize.xs,
     color: "#6B7280",
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    flexShrink: 0,
-  },
-  statusBadgeCompleted: {
-    backgroundColor: "#DCFCE7",
-  },
-  statusBadgeInProgress: {
-    backgroundColor: "#FEF3C7",
-  },
-  statusBadgePending: {
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FCA5A5",
-  },
-  statusBadgeText: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: 11,
-  },
-  statusBadgeTextCompleted: {
-    color: "#15803D",
-  },
-  statusBadgeTextInProgress: {
-    color: "#B45309",
-  },
-  statusBadgeTextPending: {
-    color: "#DC2626",
-  },
-  absentWarningBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  absentWarningBannerText: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: 11,
-    color: "#DC2626",
   },
   metaRow: {
     flexDirection: "row",
@@ -390,42 +254,5 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     color: "#4B5563",
     lineHeight: 18,
-  },
-  scoreRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#F9FAFB",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: theme.borderRadius.sm,
-    gap: 8,
-  },
-  scoreLeftWrapper: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  scoreLabel: {
-    fontFamily: theme.typography.fontFamily.medium,
-    fontWeight: theme.typography.fontWeight.medium,
-    fontSize: theme.typography.fontSize.xs,
-    color: "#4B5563",
-    flexShrink: 0,
-  },
-  scoreValue: {
-    flex: 1,
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: theme.typography.fontSize.xs,
-    color: "#2E6B65",
-  },
-  actionButtonWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    flexShrink: 0,
   },
 });

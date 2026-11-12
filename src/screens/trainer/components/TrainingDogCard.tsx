@@ -1,20 +1,16 @@
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import FontAwesomeFreeSolid from "@react-native-vector-icons/fontawesome-free-solid";
 import MaterialDesignIcons from "@react-native-vector-icons/material-design-icons";
 
 import { theme } from "../../../../theme/theme";
 import { Card } from "../../../shared/components/CardComponent";
 import { ITrainingResponse, TraningStatus } from "../../../types/Training";
-import { femaleDogIcons, maleDogIcons } from "../../../consts/dogIcons";
-
-const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
-  (acc, item) => {
-    acc[item.key] = item.image;
-    return acc;
-  },
-  {} as Record<string, any>,
-);
+import { getDogImageSource } from "../../../utils/dogAvatar";
+import {
+  TrainingDogActionsRow,
+  TrainingDogStatusBadge,
+} from "./trainingDogCard";
 
 interface TrainingDogCardProps {
   item: ITrainingResponse;
@@ -27,12 +23,11 @@ export const TrainingDogCard: React.FC<TrainingDogCardProps> = ({
   onExecuteTraining,
   onViewHistory,
 }) => {
-  const imageSource = item.avatarKey ? avatarMap[item.avatarKey] : null;
+  const imageSource = getDogImageSource(item.avatarKey);
   const isApto = item.status === TraningStatus.Apto;
   const isInapto = item.status === TraningStatus.Inapto;
   const isFinished = isApto || isInapto;
   const sessionsCount = item.totalSessionsRecorded || 0;
-  const isStarted = true;
   const isMaxSessionsReached = sessionsCount >= 21;
 
   return (
@@ -58,45 +53,11 @@ export const TrainingDogCard: React.FC<TrainingDogCardProps> = ({
             </Text>
           </View>
 
-          {/* BADGE DE STATUS */}
-          {isApto ? (
-            <View style={[styles.statusBadge, styles.statusBadgeApto]}>
-              <MaterialDesignIcons name="check-circle" size={13} color="#15803D" />
-              <Text style={[styles.statusBadgeText, styles.statusBadgeTextApto]}>
-                Concluído (Apto)
-              </Text>
-            </View>
-          ) : isInapto ? (
-            <View style={[styles.statusBadge, styles.statusBadgeInapto]}>
-              <MaterialDesignIcons name="close-circle" size={13} color="#B91C1C" />
-              <Text style={[styles.statusBadgeText, styles.statusBadgeTextInapto]}>
-                Encerrado (Inapto)
-              </Text>
-            </View>
-          ) : (
-            <View
-              style={[
-                styles.statusBadge,
-                isStarted ? styles.statusBadgeRunning : styles.statusBadgeNotStarted,
-              ]}
-            >
-              <MaterialDesignIcons
-                name="clock-outline"
-                size={13}
-                color={isStarted ? "#D97706" : "#6B7280"}
-              />
-              <Text
-                style={[
-                  styles.statusBadgeText,
-                  isStarted
-                    ? styles.statusBadgeTextRunning
-                    : styles.statusBadgeTextNotStarted,
-                ]}
-              >
-                {isStarted ? `Etapa ${item.currentStage || 1}` : "Não Iniciado"}
-              </Text>
-            </View>
-          )}
+          <TrainingDogStatusBadge
+            isApto={isApto}
+            isInapto={isInapto}
+            currentStage={item.currentStage}
+          />
         </View>
 
         {/* TREINADOR RESPONSÁVEL (SE DISPONÍVEL) */}
@@ -147,61 +108,13 @@ export const TrainingDogCard: React.FC<TrainingDogCardProps> = ({
         </View>
 
         {/* BOTÕES DE AÇÃO */}
-        <View style={styles.actionsRow}>
-          {isFinished ? (
-            <TouchableOpacity
-              style={styles.viewReportButton}
-              onPress={() => onViewHistory(item)}
-              activeOpacity={0.8}
-            >
-              <MaterialDesignIcons
-                name="file-document-outline"
-                size={18}
-                color={theme.colors.white}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={styles.viewReportButtonText}>
-                Ver Relatório Completo
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={[
-                  styles.executeButton,
-                  isMaxSessionsReached && styles.executeButtonFinalizeOnly,
-                ]}
-                onPress={() => onExecuteTraining(item)}
-                activeOpacity={0.8}
-              >
-                <FontAwesomeFreeSolid
-                  name={isMaxSessionsReached ? "flag-checkered" : "play"}
-                  size={12}
-                  color={theme.colors.white}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.executeButtonText}>
-                  {isMaxSessionsReached
-                    ? "Finalizar Etapa (21/21)"
-                    : "Realizar Treinamento"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.historyButton}
-                onPress={() => onViewHistory(item)}
-                activeOpacity={0.8}
-                accessibilityLabel="Ver Relatório e Histórico"
-              >
-                <MaterialDesignIcons
-                  name="chart-box-outline"
-                  size={20}
-                  color={theme.colors.text}
-                />
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+        <TrainingDogActionsRow
+          item={item}
+          isFinished={isFinished}
+          isMaxSessionsReached={isMaxSessionsReached}
+          onExecuteTraining={onExecuteTraining}
+          onViewHistory={onViewHistory}
+        />
       </View>
     </Card>
   );
@@ -209,7 +122,7 @@ export const TrainingDogCard: React.FC<TrainingDogCardProps> = ({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    gap: 12,
+    gap: 10,
   },
   headerRow: {
     flexDirection: "row",
@@ -217,18 +130,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatarWrapper: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
   },
   avatarImage: {
-    width: 52,
-    height: 52,
-    borderRadius: theme.borderRadius.full,
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
   },
   avatarPlaceholder: {
     backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 8,
   },
   nameContainer: {
     flex: 1,
@@ -245,43 +161,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     color: "#6B7280",
   },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: theme.borderRadius.full,
-  },
-  statusBadgeApto: {
-    backgroundColor: "#DCFCE7",
-  },
-  statusBadgeInapto: {
-    backgroundColor: "#FEE2E2",
-  },
-  statusBadgeRunning: {
-    backgroundColor: "#FEF3C7",
-  },
-  statusBadgeNotStarted: {
-    backgroundColor: "#E5E7EB",
-  },
-  statusBadgeText: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: 11,
-  },
-  statusBadgeTextApto: {
-    color: "#15803D",
-  },
-  statusBadgeTextInapto: {
-    color: "#B91C1C",
-  },
-  statusBadgeTextRunning: {
-    color: "#D97706",
-  },
-  statusBadgeTextNotStarted: {
-    color: "#4B5563",
-  },
   trainerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -296,87 +175,43 @@ const styles = StyleSheet.create({
   },
   stageProgressRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 2,
-    gap: 8,
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.sm,
+    gap: 6,
   },
   stageText: {
     fontFamily: theme.typography.fontFamily.bold,
     fontWeight: theme.typography.fontWeight.bold,
-    fontSize: theme.typography.fontSize.xs,
-    color: "#4B5563",
+    fontSize: 11,
+    color: "#334155",
   },
   sessionsBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0FDF4",
-    paddingHorizontal: 8,
+    gap: 3,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: theme.borderRadius.full,
-    gap: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   sessionsText: {
     fontFamily: theme.typography.fontFamily.bold,
     fontWeight: theme.typography.fontWeight.bold,
-    fontSize: 11,
-    color: "#166534",
+    fontSize: 10,
+    color: "#2E6B65",
   },
   sessionsTextLimit: {
     color: "#B91C1C",
   },
   lastActivityText: {
     fontFamily: theme.typography.fontFamily.regular,
-    fontSize: theme.typography.fontSize.xs,
-    color: "#6B7280",
-  },
-  actionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 4,
-  },
-  executeButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2E6B65",
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  executeButtonFinalizeOnly: {
-    backgroundColor: "#D97706",
-  },
-  executeButtonText: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.white,
-  },
-  viewReportButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#1E3A8A",
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  viewReportButtonText: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.white,
-  },
-  historyButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
+    fontSize: 10,
+    color: "#94A3B8",
   },
 });

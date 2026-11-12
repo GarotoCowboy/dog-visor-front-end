@@ -12,6 +12,82 @@ const STORAGE_KEYS = {
   STAGE_CACHE_PREFIX: "@dogvisor_stage_cache_",
   REPORT_CACHE_PREFIX: "@dogvisor_report_cache_",
   PENDING_SYNC_QUEUE: "@dogvisor_pending_sync_queue",
+  TRAINER_ID_CACHE: "@dogvisor_trainer_id_cache",
+  TRAINER_NAMES_MAP_CACHE: "@dogvisor_trainer_names_map_cache",
+};
+
+/**
+ * Salva o mapa de IDs -> Nomes de treinadores em cache local
+ */
+export const saveCachedTrainerNamesMap = async (
+  newEntries: Record<string, string>,
+): Promise<void> => {
+  try {
+    const existing = await getCachedTrainerNamesMap();
+    const merged: Record<string, string> = { ...existing };
+    Object.entries(newEntries).forEach(([id, name]) => {
+      if (
+        id &&
+        id !== "00000000-0000-0000-0000-000000000000" &&
+        typeof name === "string" &&
+        name.trim()
+      ) {
+        merged[id.toLowerCase()] = name.trim();
+      }
+    });
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.TRAINER_NAMES_MAP_CACHE,
+      JSON.stringify(merged),
+    );
+  } catch (error) {
+    console.log("Erro ao salvar mapa de treinadores em cache:", error);
+  }
+};
+
+/**
+ * Recupera o mapa de IDs -> Nomes de treinadores salvo localmente
+ */
+export const getCachedTrainerNamesMap = async (): Promise<
+  Record<string, string>
+> => {
+  try {
+    const raw = await AsyncStorage.getItem(
+      STORAGE_KEYS.TRAINER_NAMES_MAP_CACHE,
+    );
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch (error) {
+    console.log("Erro ao ler mapa de treinadores do cache:", error);
+    return {};
+  }
+};
+
+/**
+ * Salva o ID do treinador autenticado em cache local para uso offline
+ */
+export const saveCachedTrainerId = async (trainerId: string): Promise<void> => {
+  try {
+    if (!trainerId || trainerId === "00000000-0000-0000-0000-000000000000") {
+      return;
+    }
+    await AsyncStorage.setItem(STORAGE_KEYS.TRAINER_ID_CACHE, trainerId);
+  } catch (error) {
+    console.log("Erro ao salvar trainerId em cache:", error);
+  }
+};
+
+/**
+ * Recupera o ID do treinador salvo localmente
+ */
+export const getCachedTrainerId = async (): Promise<string | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.TRAINER_ID_CACHE);
+    if (!raw || raw === "00000000-0000-0000-0000-000000000000") return null;
+    return raw;
+  } catch (error) {
+    console.log("Erro ao ler trainerId do cache:", error);
+    return null;
+  }
 };
 
 /**
