@@ -100,20 +100,36 @@ export interface ICreateEmployeeRequest {
   registration: string;
   shift: EmployeeShift;
   type: EmployeeType;
+  crmv?: string;
+  areaOfExpertise?: string;
 }
 
 
 // --- Helpers tipados para a união de perfis (evitam casts `as any`) ---
 type AnyEmployee = UserProfileResponse | IEmployeeResponse;
 
-/** Identificador do funcionário: employeeId, collaboratorId ou userId (nessa ordem). */
+/** Identificador do funcionário: employeeId, trainerId, collaboratorId ou userId (nessa ordem). */
 export const getEmployeeIdentifier = (
   user?: AnyEmployee | null,
 ): string | undefined => {
   if (!user) return undefined;
-  if ("employeeId" in user && user.employeeId) return user.employeeId;
-  if ("collaboratorId" in user && user.collaboratorId) return user.collaboratorId;
-  return user.userId || undefined;
+  const raw = user as Record<string, any>;
+  const candidates = [
+    "employeeId" in user ? user.employeeId : undefined,
+    typeof raw.trainerId === "string" ? raw.trainerId : undefined,
+    "collaboratorId" in user ? user.collaboratorId : undefined,
+    typeof raw.veterinarianId === "string" ? raw.veterinarianId : undefined,
+    typeof raw.coordinatorId === "string" ? raw.coordinatorId : undefined,
+    typeof raw.id === "string" ? raw.id : undefined,
+    typeof raw.ID === "string" ? raw.ID : undefined,
+    user.userId,
+  ];
+  return candidates.find(
+    (id) =>
+      typeof id === "string" &&
+      id.trim().length > 0 &&
+      id !== "00000000-0000-0000-0000-000000000000",
+  );
 };
 
 export const getUserCrmv = (user?: AnyEmployee | null): string | undefined =>

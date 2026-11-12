@@ -36,6 +36,8 @@ export const CreateEmployeeScreen = () => {
   const [registration, setRegistration] = useState("");
   const [type, setType] = useState<EmployeeType | null>(null);
   const [shift, setShift] = useState<EmployeeShift | null>(null);
+  const [crmv, setCrmv] = useState("");
+  const [areaOfExpertise, setAreaOfExpertise] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -134,6 +136,37 @@ export const CreateEmployeeScreen = () => {
       return false;
     }
 
+    if (type === EmployeeType.VETERINARIAN) {
+      if (!crmv.trim()) {
+        showAlert(
+          "warning",
+          "CRMV Obrigatório",
+          "Por favor, informe o registro CRMV do veterinário.",
+        );
+        return false;
+      }
+
+      if (!areaOfExpertise.trim()) {
+        showAlert(
+          "warning",
+          "Especialidade Obrigatória",
+          "Por favor, informe a especialidade do veterinário.",
+        );
+        return false;
+      }
+    }
+
+    if (type === EmployeeType.TRAINER) {
+      if (!areaOfExpertise.trim()) {
+        showAlert(
+          "warning",
+          "Especialidade Obrigatória",
+          "Por favor, informe a especialidade do treinador.",
+        );
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -148,6 +181,13 @@ export const CreateEmployeeScreen = () => {
       registration: registration.trim().toUpperCase(),
       type: type!,
       shift: shift!,
+      ...(type === EmployeeType.VETERINARIAN && {
+        crmv: crmv.trim().toUpperCase(),
+        areaOfExpertise: areaOfExpertise.trim(),
+      }),
+      ...(type === EmployeeType.TRAINER && {
+        areaOfExpertise: areaOfExpertise.trim(),
+      }),
     };
 
     try {
@@ -251,7 +291,19 @@ export const CreateEmployeeScreen = () => {
               value={type ? EmployeeTypeLabel[type] : ""}
               onChangeText={() => {}}
               options={typeOptions}
-              onSelect={(val) => setType(val as EmployeeType)}
+              onSelect={(val) => {
+                const nextType = val as EmployeeType;
+                setType(nextType);
+                if (nextType !== EmployeeType.VETERINARIAN) {
+                  setCrmv("");
+                }
+                if (
+                  nextType !== EmployeeType.VETERINARIAN &&
+                  nextType !== EmployeeType.TRAINER
+                ) {
+                  setAreaOfExpertise("");
+                }
+              }}
             />
 
             {/* TURNO DE TRABALHO */}
@@ -265,6 +317,62 @@ export const CreateEmployeeScreen = () => {
               options={shiftOptions}
               onSelect={(val) => setShift(val as EmployeeShift)}
             />
+
+            {/* CAMPOS ESPECÍFICOS PARA VETERINÁRIO */}
+            {type === EmployeeType.VETERINARIAN && (
+              <View style={styles.roleSpecificContainer}>
+                <View style={styles.roleSpecificHeader}>
+                  <FontAwesomeFreeSolid
+                    name="user-doctor"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={styles.roleSpecificTitle}>
+                    Dados Profissionais do Veterinário
+                  </Text>
+                </View>
+
+                <FormComponent
+                  text="CRMV: *"
+                  placeholder="Ex: CRMV-SP 12345"
+                  value={crmv}
+                  onChangeText={(text) => setCrmv(text.toUpperCase())}
+                  editable={!submitting}
+                />
+
+                <FormComponent
+                  text="Especialidade: *"
+                  placeholder="Ex: Clínica Geral, Cirurgia, Dermatologia"
+                  value={areaOfExpertise}
+                  onChangeText={setAreaOfExpertise}
+                  editable={!submitting}
+                />
+              </View>
+            )}
+
+            {/* CAMPOS ESPECÍFICOS PARA TREINADOR / ADESTRADOR */}
+            {type === EmployeeType.TRAINER && (
+              <View style={styles.roleSpecificContainer}>
+                <View style={styles.roleSpecificHeader}>
+                  <FontAwesomeFreeSolid
+                    name="dog"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={styles.roleSpecificTitle}>
+                    Dados Profissionais do Adestrador
+                  </Text>
+                </View>
+
+                <FormComponent
+                  text="Especialidade: *"
+                  placeholder="Ex: Treinamento Comportamental, Socialização, Cão-Guia"
+                  value={areaOfExpertise}
+                  onChangeText={setAreaOfExpertise}
+                  editable={!submitting}
+                />
+              </View>
+            )}
 
             {/* BOTOES DE ACAO */}
             <View style={styles.actionsContainer}>
@@ -345,6 +453,23 @@ const styles = StyleSheet.create({
   },
   formSection: {
     gap: 14,
+  },
+  roleSpecificContainer: {
+    gap: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  roleSpecificHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  roleSpecificTitle: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.primary,
   },
   actionsContainer: {
     flexDirection: "row",

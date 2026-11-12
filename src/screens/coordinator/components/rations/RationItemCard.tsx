@@ -15,7 +15,6 @@ interface RationItemCardProps {
   item: IRationResponse;
   estimate?: IRationConsumptionEstimateResponse;
   todayStr: string;
-  onPressDetails: () => void;
   onRequestDailyDeduction: () => void;
   onIncrease: () => void;
   onDecrease: () => void;
@@ -26,7 +25,6 @@ export const RationItemCard: React.FC<RationItemCardProps> = ({
   item,
   estimate,
   todayStr,
-  onPressDetails,
   onRequestDailyDeduction,
   onIncrease,
   onDecrease,
@@ -54,9 +52,8 @@ export const RationItemCard: React.FC<RationItemCardProps> = ({
   );
 
   return (
-    <TouchableOpacity onPress={onPressDetails} activeOpacity={0.85}>
-      <View style={styles.cardContainer}>
-        <Card>
+    <View style={styles.cardContainer}>
+      <Card>
           <View style={styles.rowContainer}>
             <View style={styles.leftColumn}>
               <View style={styles.iconWrapper}>
@@ -218,7 +215,6 @@ export const RationItemCard: React.FC<RationItemCardProps> = ({
           </View>
         </Card>
       </View>
-    </TouchableOpacity>
   );
 };
 

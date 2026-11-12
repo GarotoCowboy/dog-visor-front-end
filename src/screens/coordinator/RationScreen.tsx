@@ -15,12 +15,14 @@ import {
   IRationConsumptionEstimateResponse,
   IRationResponse,
 } from "../../types/Ration";
+import { IFeedingPlanResponse } from "../../types/FeedingPlan";
 import {
   applyDailyConsumptionAllService,
   applyDailyConsumptionService,
   deleteDogRation,
   getAllRationEstimates,
   getDogRation,
+  listFeedingPlansService,
 } from "../../service/api";
 import { theme } from "../../../theme/theme";
 import { FontAwesomeFreeSolid } from "@react-native-vector-icons/fontawesome-free-solid";
@@ -42,6 +44,7 @@ export const RationScreen = () => {
   const [estimates, setEstimates] = useState<
     Record<string, IRationConsumptionEstimateResponse>
   >({});
+  const [feedingPlans, setFeedingPlans] = useState<IFeedingPlanResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [openIncreaseRationForm, setOpenIncreaseRationForm] = useState(false);
   const [openDecreaseRationForm, setOpenDecreaseRationForm] = useState(false);
@@ -50,11 +53,13 @@ export const RationScreen = () => {
   const loadingRations = async () => {
     try {
       setLoading(true);
-      const [data, ests] = await Promise.all([
+      const [data, ests, plans] = await Promise.all([
         getDogRation(),
         getAllRationEstimates().catch(() => []),
+        listFeedingPlansService().catch(() => []),
       ]);
       setRations(data);
+      setFeedingPlans(Array.isArray(plans) ? plans : []);
 
       if (Array.isArray(ests)) {
         const map: Record<string, IRationConsumptionEstimateResponse> = {};
@@ -188,6 +193,28 @@ export const RationScreen = () => {
   };
 
   const confirmDeleteRation = (id: string) => {
+    const rationItem = rations.find((r) => String(r.id) === String(id));
+    const est = estimates[String(id)];
+    const plansUsingRation = feedingPlans.filter(
+      (p) => String(p.rationId) === String(id),
+    );
+    const estDogsCount = est?.dogConsumptions?.length ?? 0;
+    const dailyKg =
+      est?.totalDailyConsumptionKg ?? est?.dailyConsumptionKg ?? 0;
+    const linkedCount = Math.max(plansUsingRation.length, estDogsCount);
+
+    if (linkedCount > 0 || dailyKg > 0) {
+      const rationLabel = rationItem?.name ? `"${rationItem.name}"` : "selecionada";
+      showAlert(
+        "warning",
+        "Ração em Uso",
+        linkedCount > 0
+          ? `Não é possível excluir a ração ${rationLabel} pois ela está vinculada a ${linkedCount} plano(s) alimentar(es) ativo(s). Altere a ração nos planos alimentares desses cães antes de excluí-la.`
+          : `Não é possível excluir a ração ${rationLabel} pois existem planos alimentares ativos consumindo ${dailyKg.toFixed(2)} kg/dia dela. Altere a ração nos planos alimentares antes de excluí-la.`,
+      );
+      return;
+    }
+
     showConfirm(
       "Confirmar exclusão",
       "Tem certeza que deseja deletar esta ração?",
@@ -199,12 +226,14 @@ export const RationScreen = () => {
             prev.filter((item) => String(item.id) !== String(id)),
           );
           showAlert("success", "Sucesso", "Ração deletada com sucesso.");
-        } catch (error) {
+        } catch (error: any) {
           console.error("Erro ao deletar ração", error);
+          const backendMsg = error?.response?.data?.message;
           showAlert(
             "error",
             "Erro ao deletar ração",
-            "Não foi possível remover a ração. Tente novamente.",
+            backendMsg ||
+              "Não foi possível remover a ração. Verifique se não há planos alimentares vinculados e tente novamente.",
           );
         } finally {
           setLoading(false);
@@ -293,11 +322,6 @@ export const RationScreen = () => {
                 item={item}
                 estimate={estimates[String(item.id)]}
                 todayStr={todayStr}
-                onPressDetails={() =>
-                  navigation.navigate(SCREENS.RATION_DETAILS_SCREEN, {
-                    ration: item,
-                  })
-                }
                 onRequestDailyDeduction={() =>
                   handleRequestDailyDeduction(item)
                 }

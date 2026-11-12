@@ -128,7 +128,7 @@ export const CreateRationsScreen = () => {
               />
               <FormComponent
                 variant="dropdown"
-                editable={false}
+                editable={!loading}
                 text="Tipo da Ração"
                 placeholder="Selecione o tipo da ração do cão"
                 value={
