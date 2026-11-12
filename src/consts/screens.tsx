@@ -16,13 +16,14 @@ export const SCREENS = {
   COORDINATOR_HOME: "CoordinatorHome",
   CREATE_RATIONS_SCREEN: "CreateRationScreen",
   RATIONS_SCREEN: "RationsScreen",
-  RATION_DETAILS_SCREEN: "RationDetailsScreen",
   COLLABORATORS_LIST_SCREEN: "CollaboratorsListScreen",
   CREATE_EMPLOYEE_SCREEN: "CreateEmployeeScreen",
 
   TRAINER_HOME: "TrainerHomeScreen",
   TRAINING_MANAGEMENT_SCREEN: "TrainingManagementScreen",
   TESTS_MANAGEMENT_SCREEN: "TestsManagementScreen",
+
+  COLLABORATOR_HOME: "CollaboratorHomeScreen",
 
   NOTIFICATIONS_SCREEN: "NotificationsScreen",
   PROFILE_SCREEN: "ProfileScreen",

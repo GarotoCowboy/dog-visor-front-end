@@ -27,10 +27,8 @@ import {
   listTrainingsByDogIdService,
   listVolhardTestsByDogIdService,
   resolveTrainerNameFromMap,
-  updateDogReproductionService,
   updateDogService,
 } from "../../service/api";
-import { appendManualEndObservation } from "../../utils/reproductionStatus";
 
 import {
   getCachedReport,
@@ -525,41 +523,6 @@ export const DogDetailsScreen = ({ route, navigation }: Props) => {
     });
   };
 
-  const handleEndHeat = (item: IDogReproductionResponse) => {
-    showConfirm(
-      "Encerrar Período de Cio",
-      `Deseja marcar o período de cio atual de "${dog.name}" como encerrado?`,
-      async () => {
-        try {
-          setLoadingHeat(true);
-          const updated = await updateDogReproductionService(item.id, {
-            date: item.date,
-            expectedNextHeatDate: item.expectedNextHeatDate,
-            cycleIntervalInMonths: item.cycleIntervalInMonths,
-            observations: appendManualEndObservation(item.observations),
-          });
-          setLastHeat(updated);
-          showAlert(
-            "success",
-            "Cio Encerrado!",
-            `O período de cio de "${dog.name}" foi marcado como encerrado.`,
-          );
-        } catch (err: any) {
-          console.log("Erro ao encerrar cio:", err);
-          showAlert(
-            "error",
-            "Erro ao Encerrar",
-            err?.response?.data?.message ||
-              "Não foi possível encerrar o período de cio.",
-          );
-        } finally {
-          setLoadingHeat(false);
-        }
-      },
-      { confirmText: "Encerrar Cio", cancelText: "Cancelar" },
-    );
-  };
-
   return (
     <ScrollView
       style={styles.container}
@@ -605,7 +568,6 @@ export const DogDetailsScreen = ({ route, navigation }: Props) => {
           loadingHeat={loadingHeat}
           formatDate={formatDate}
           onNavigateToReproduction={handleNavigateToReproduction}
-          onEndHeat={handleEndHeat}
         />
       )}
 

@@ -6,7 +6,10 @@ import MaterialDesignIcons from "@react-native-vector-icons/material-design-icon
 import { theme } from "../../../../../theme/theme";
 import { Card } from "../../../../shared/components/CardComponent";
 import { DogRaceLabel, DogStatusColor, DogStatusLabel, IDogResponse } from "../../../../types/Dog";
-import { calculateAge } from "../../../../utils/calculateAge";
+import {
+  calculateAge,
+  getDogLifeStageLabel,
+} from "../../../../utils/calculateAge";
 
 interface DogIdentityCardProps {
   dog: IDogResponse;
@@ -130,10 +133,12 @@ export const DogIdentityCard: React.FC<DogIdentityCardProps> = ({
         </View>
 
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Idade</Text>
+          <Text style={styles.infoLabel}>Idade / Fase</Text>
           <Text style={styles.infoValue}>
             {dog.dateOfBirth
-              ? calculateAge(new Date(dog.dateOfBirth))
+              ? `${calculateAge(dog.dateOfBirth)} (${getDogLifeStageLabel(
+                  dog.dateOfBirth,
+                )})`
               : "Não informada"}
           </Text>
         </View>

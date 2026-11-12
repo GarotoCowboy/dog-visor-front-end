@@ -11,6 +11,7 @@ import { CoordinatorHomeScreen } from "../screens/coordinator/CoordinatorHomeScr
 import { ProfileScreen } from "../screens/profile/ProfileScreen";
 import { NotificationsScreen } from "../screens/notifications/NotificationsScreen";
 import { TrainerHomeScreen } from "../screens/trainer/TrainerHomeScreen";
+import { CollaboratorHomeScreen } from "../screens/colaborator/CollaboratorHomeScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -22,6 +23,7 @@ const tabScreenOptions = ({ route }: { route: { name: string } }) => ({
       [SCREENS.VETERINARIAN_HOME]: "Início",
       [SCREENS.COORDINATOR_HOME]: "Início",
       [SCREENS.TRAINER_HOME]: "Início",
+      [SCREENS.COLLABORATOR_HOME]: "Cuidados",
       [SCREENS.NOTIFICATIONS_SCREEN]: "Avisos",
       [SCREENS.DOG_SCREEN]: "Cães",
       [SCREENS.PROFILE_SCREEN]: "Perfil",
@@ -44,7 +46,9 @@ const tabScreenOptions = ({ route }: { route: { name: string } }) => ({
   },
   tabBarIcon: ({ focused, size }: { focused: boolean; size: number }) => {
     let iconName: any = "house";
-    if (route.name === SCREENS.DOG_SCREEN) {
+    if (route.name === SCREENS.COLLABORATOR_HOME) {
+      iconName = "paw";
+    } else if (route.name === SCREENS.DOG_SCREEN) {
       iconName = "dog";
     } else if (route.name === SCREENS.NOTIFICATIONS_SCREEN) {
       iconName = "bell";
@@ -146,6 +150,11 @@ export function TrainerTabs() {
 export function CollaboratorTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
+      <Tab.Screen
+        name={SCREENS.COLLABORATOR_HOME}
+        component={CollaboratorHomeScreen}
+        options={{ headerTitle: "Painel do Colaborador" }}
+      />
       <Tab.Screen
         name={SCREENS.NOTIFICATIONS_SCREEN}
         component={NotificationsScreen}

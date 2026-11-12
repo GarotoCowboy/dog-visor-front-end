@@ -179,19 +179,19 @@ export const CreateDogsScreen = () => {
 
               <FormComponent
                 variant="dropdown"
-                editable={false}
+                editable={!loading}
                 text="Raça:"
                 placeholder="Selecione a raça"
                 value={formData.race ? DogRaceLabel[formData.race] : ""}
                 onChangeText={() => {}}
                 options={[
-                  { label: "Labrador", value: EDOG_RACE.LABRADOR },
-                  { label: "Border Collier", value: EDOG_RACE.BORDER_COLLIER },
+                  { label: DogRaceLabel[EDOG_RACE.LABRADOR] || "Labrador", value: EDOG_RACE.LABRADOR },
+                  { label: DogRaceLabel[EDOG_RACE.BORDER_COLLIER] || "Border Collie", value: EDOG_RACE.BORDER_COLLIER },
                   {
-                    label: "Golden Retriever",
+                    label: DogRaceLabel[EDOG_RACE.GOLDEN_RETRIEVER] || "Golden Retriever",
                     value: EDOG_RACE.GOLDEN_RETRIEVER,
                   },
-                  { label: "Pastor Alemão", value: EDOG_RACE.PASTOR_ALEMAO },
+                  { label: DogRaceLabel[EDOG_RACE.PASTOR_ALEMAO] || "Pastor Alemão", value: EDOG_RACE.PASTOR_ALEMAO },
                 ]}
                 onSelect={(val) =>
                   setFormData((prev) => ({ ...prev, race: val as EDOG_RACE }))
@@ -231,7 +231,7 @@ export const CreateDogsScreen = () => {
 
               <FormComponent
                 variant="dropdown"
-                editable={false}
+                editable={!loading}
                 text="Status:"
                 placeholder="Selecione o status"
                 value={formData.status ? DogStatusLabel[formData.status] : ""}

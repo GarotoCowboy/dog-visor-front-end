@@ -29,7 +29,6 @@ import { useAlert } from "../../hooks/useAlert";
 import { PuppyCareCard } from "./components/PuppyCareCard";
 import { PuppyWeighingModal } from "./components/PuppyWeighingModal";
 import { PuppyMassageModal } from "./components/PuppyMassageModal";
-import { PuppyVetAlertModal } from "./components/PuppyVetAlertModal";
 
 export const CollaboratorHomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -290,16 +289,6 @@ export const CollaboratorHomeScreen: React.FC = () => {
         onSaveMassage={handleSaveMassage}
       />
 
-      {/* MODAL DE ALERTA VETERINÁRIO */}
-      <PuppyVetAlertModal
-        visible={vetModalVisible}
-        dog={selectedPuppy}
-        submitting={submitting}
-        onClose={() => setVetModalVisible(false)}
-        onSendVetAlert={handleSendVetAlert}
-      />
-
-      {/* ALERTA CUSTOMIZADO */}
       <AlertModal />
     </View>
   );

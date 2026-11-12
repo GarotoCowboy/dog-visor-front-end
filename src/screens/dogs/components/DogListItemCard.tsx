@@ -11,7 +11,10 @@ import {
   EDOG_STATUS,
   IDogResponse,
 } from "../../../types/Dog";
-import { calculateAge } from "../../../utils/calculateAge";
+import {
+  calculateAge,
+  getDogLifeStageLabel,
+} from "../../../utils/calculateAge";
 
 const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
   (acc, item) => {
@@ -22,6 +25,14 @@ const avatarMap = [...femaleDogIcons, ...maleDogIcons].reduce(
 );
 
 export const isDogInKennel = (dog: IDogResponse) => {
+  if (
+    dog.status === EDOG_STATUS.DOADO ||
+    dog.status === EDOG_STATUS.FALECIDO ||
+    dog.status === EDOG_STATUS.DOACAO ||
+    dog.status === EDOG_STATUS.CEDIDO
+  ) {
+    return false;
+  }
   if (dog.onKennel !== undefined && dog.onKennel !== null) {
     return Boolean(dog.onKennel);
   }
@@ -31,7 +42,7 @@ export const isDogInKennel = (dog: IDogResponse) => {
   if (dog.inKennel !== undefined && dog.inKennel !== null) {
     return Boolean(dog.inKennel);
   }
-  return dog.status === EDOG_STATUS.TREINAMENTO;
+  return true;
 };
 
 interface DogListItemCardProps {
@@ -128,7 +139,8 @@ export const DogListItemCard: React.FC<DogListItemCardProps> = ({
 
               <View style={{ ...styles.rowContainer, gap: 12 }}>
                 <Text style={styles.dogDetailsText}>
-                  {calculateAge(new Date(dog.dateOfBirth))}
+                  {calculateAge(dog.dateOfBirth)} (
+                  {getDogLifeStageLabel(dog.dateOfBirth)})
                 </Text>
 
                 <Text style={styles.dogDetailsText}>

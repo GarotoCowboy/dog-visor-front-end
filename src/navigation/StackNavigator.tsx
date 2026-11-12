@@ -24,7 +24,6 @@ import { ReproductionManagementScreen } from "../screens/veterinarian/Reproducti
 import { NotificationsScreen } from "../screens/notifications/NotificationsScreen";
 import { CreateRationsScreen } from "../screens/coordinator/CreateRationsScreen";
 import { RationScreen } from "../screens/coordinator/RationScreen";
-import { RationDetailsScreen } from "../screens/coordinator/RationDetailsScreen";
 import { CollaboratorsListScreen } from "../screens/coordinator/CollaboratorsListScreen";
 import { CreateEmployeeScreen } from "../screens/coordinator/CreateEmployeeScreen";
 import { IFeedingPlanResponse } from "../types/FeedingPlan";
@@ -37,6 +36,7 @@ import {
 import { TrainerHomeScreen } from "../screens/trainer/TrainerHomeScreen";
 import { TrainingManagementScreen } from "../screens/trainer/TrainingManagementScreen";
 import { TestsManagementScreen } from "../screens/trainer/TestsManagementScreen";
+import { CollaboratorHomeScreen } from "../screens/colaborator/CollaboratorHomeScreen";
 
 export type RootStackParamList = {
   MAIN_TABS: undefined;
@@ -46,6 +46,7 @@ export type RootStackParamList = {
   [SCREENS.LOGIN]: undefined;
   [SCREENS.VETERINARIAN_HOME]: undefined;
   [SCREENS.TRAINER_HOME]: undefined;
+  [SCREENS.COLLABORATOR_HOME]: undefined;
   [SCREENS.TRAINING_MANAGEMENT_SCREEN]: undefined;
   [SCREENS.TESTS_MANAGEMENT_SCREEN]: undefined;
   [SCREENS.DOG_SCREEN]: undefined;
@@ -67,7 +68,6 @@ export type RootStackParamList = {
   [SCREENS.COORDINATOR_HOME]: undefined;
   [SCREENS.CREATE_RATIONS_SCREEN]: undefined;
   [SCREENS.RATIONS_SCREEN]: undefined;
-  [SCREENS.RATION_DETAILS_SCREEN]: { ration: IRationResponse };
   [SCREENS.COLLABORATORS_LIST_SCREEN]: undefined;
   [SCREENS.CREATE_EMPLOYEE_SCREEN]: undefined;
   [SCREENS.NOTIFICATIONS_SCREEN]: undefined;
@@ -115,7 +115,6 @@ export function MyStack() {
               <Stack.Screen name="COORDINATOR_TABS" component={CoordinatorTabs} />
               <Stack.Screen name={SCREENS.RATIONS_SCREEN} component={RationScreen} options={{ headerShown: true, headerTitle: "Rações" }} />
               <Stack.Screen name={SCREENS.CREATE_RATIONS_SCREEN} component={CreateRationsScreen} options={{ headerShown: true, headerTitle: "Adicionar Ração" }} />
-              <Stack.Screen name={SCREENS.RATION_DETAILS_SCREEN} component={RationDetailsScreen} options={{ headerShown: true, headerTitle: "Detalhes da Ração" }} />
               <Stack.Screen name={SCREENS.COLLABORATORS_LIST_SCREEN} component={CollaboratorsListScreen} options={{ headerShown: true, headerTitle: "Colaboradores Ativos" }} />
               <Stack.Screen name={SCREENS.CREATE_EMPLOYEE_SCREEN} component={CreateEmployeeScreen} options={{ headerShown: true, headerTitle: "Novo Funcionário" }} />
             </>
@@ -130,6 +129,7 @@ export function MyStack() {
           <Stack.Screen name={SCREENS.DOG_DETAILS_SCREEN} component={DogDetailsScreen} options={{ headerShown: true, headerTitle: "Informações do Cão" }} />
           <Stack.Screen name={SCREENS.REPRODUCTION_MANAGEMENT_SCREEN} component={ReproductionManagementScreen} options={{ headerShown: true, headerTitle: "Controle Reprodutivo" }} />
           <Stack.Screen name={SCREENS.TRAINER_HOME} component={TrainerHomeScreen} options={{ headerShown: true, headerTitle: "Treinamento & Avaliações" }} />
+          <Stack.Screen name={SCREENS.COLLABORATOR_HOME} component={CollaboratorHomeScreen} options={{ headerShown: true, headerTitle: "Painel do Colaborador" }} />
           <Stack.Screen name={SCREENS.TRAINING_MANAGEMENT_SCREEN} component={TrainingManagementScreen} options={{ headerShown: true, headerTitle: "Gestão de Treinamento" }} />
           <Stack.Screen name={SCREENS.TESTS_MANAGEMENT_SCREEN} component={TestsManagementScreen} options={{ headerShown: true, headerTitle: "Gestão de Testes" }} />
         </>

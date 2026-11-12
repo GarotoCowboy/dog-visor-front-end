@@ -19,7 +19,6 @@ interface DogReproductionCardProps {
   loadingHeat: boolean;
   formatDate: (dateStr?: string) => string;
   onNavigateToReproduction: (openCreate: boolean) => void;
-  onEndHeat?: (item: IDogReproductionResponse) => void;
 }
 
 export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
@@ -29,7 +28,6 @@ export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
   loadingHeat,
   formatDate,
   onNavigateToReproduction,
-  onEndHeat,
 }) => {
   const statusInfo = lastHeat ? getReproductionStatusInfo(lastHeat) : null;
   const cleanObservations = lastHeat
@@ -98,21 +96,6 @@ export const DogReproductionCard: React.FC<DogReproductionCardProps> = ({
                     {statusInfo.label}
                   </Text>
                 </View>
-
-                {canEditDog && statusInfo.canEndManually && onEndHeat && (
-                  <TouchableOpacity
-                    style={styles.endHeatButton}
-                    onPress={() => onEndHeat(lastHeat)}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialDesignIcons
-                      name="check-circle-outline"
-                      size={13}
-                      color="#BE185D"
-                    />
-                    <Text style={styles.endHeatButtonText}>Encerrar Cio</Text>
-                  </TouchableOpacity>
-                )}
               </View>
 
               <Text
@@ -268,23 +251,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.medium,
     fontWeight: theme.typography.fontWeight.medium,
     fontSize: 11,
-  },
-  endHeatButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#F472B6",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.full,
-  },
-  endHeatButtonText: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: 10,
-    color: "#BE185D",
   },
   heatRow: {
     flexDirection: "row",

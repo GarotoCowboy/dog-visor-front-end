@@ -64,7 +64,7 @@ export const EditDogStatusModal: React.FC<EditDogStatusModalProps> = ({
           >
             <FormComponent
               variant="dropdown"
-              editable={false}
+              editable={!updating}
               text="Status no Programa: *"
               placeholder="Selecione o status"
               value={editStatus ? DogStatusLabel[editStatus] : ""}

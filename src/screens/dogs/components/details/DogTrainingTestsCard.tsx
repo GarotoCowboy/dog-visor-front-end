@@ -140,6 +140,21 @@ export const DogTrainingTestsCard: React.FC<DogTrainingTestsCardProps> = ({
                         ? "Treinamento finalizado sem aptidão"
                         : "Acompanhamento diário das etapas de aprendizagem"}
                     </Text>
+                    {Boolean(training?.trainerName || report?.trainerName) && (
+                      <View style={styles.trainerRow}>
+                        <MaterialDesignIcons
+                          name="account-tie-outline"
+                          size={13}
+                          color="#2E6B65"
+                        />
+                        <Text style={styles.trainerLabelText}>
+                          Treinador(a):{" "}
+                          <Text style={styles.trainerValueText}>
+                            {training?.trainerName || report?.trainerName}
+                          </Text>
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   <View
@@ -262,16 +277,32 @@ export const DogTrainingTestsCard: React.FC<DogTrainingTestsCardProps> = ({
 
                       <Text style={styles.testTitle}>{t.title}</Text>
 
-                      {Boolean(t.date) && (
-                        <View style={styles.testDateRow}>
+                      <View style={styles.testMetaRow}>
+                        {Boolean(t.date) && (
+                          <View style={styles.testDateRow}>
+                            <MaterialDesignIcons
+                              name="calendar-month-outline"
+                              size={13}
+                              color="#6B7280"
+                            />
+                            <Text style={styles.testDateText}>{t.date}</Text>
+                          </View>
+                        )}
+
+                        <View style={styles.trainerRow}>
                           <MaterialDesignIcons
-                            name="calendar-month-outline"
+                            name="account-tie-outline"
                             size={13}
-                            color="#6B7280"
+                            color="#2E6B65"
                           />
-                          <Text style={styles.testDateText}>{t.date}</Text>
+                          <Text style={styles.trainerLabelText}>
+                            Treinador(a):{" "}
+                            <Text style={styles.trainerValueText}>
+                              {t.trainerName || "Não identificado"}
+                            </Text>
+                          </Text>
                         </View>
-                      )}
+                      </View>
 
                       {Boolean(t.description) && (
                         <Text style={styles.testDesc} numberOfLines={3}>
@@ -476,6 +507,12 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     color: theme.colors.text,
   },
+  testMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+  },
   testDateRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -485,6 +522,22 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.regular,
     fontSize: 10,
     color: "#6B7280",
+  },
+  trainerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  trainerLabelText: {
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 11,
+    color: "#4B5563",
+  },
+  trainerValueText: {
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: "#2E6B65",
   },
   testDesc: {
     fontFamily: theme.typography.fontFamily.regular,
