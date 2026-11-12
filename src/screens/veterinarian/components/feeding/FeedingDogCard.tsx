@@ -20,6 +20,7 @@ interface FeedingDogCardProps {
   dog: IDogResponse;
   plan?: IFeedingPlanResponse;
   inKennel: boolean;
+  rationDeleted?: boolean;
   currentQuantity: number;
   onEditPlan: () => void;
   onAdjustQuantity: (delta: number) => void;
@@ -29,14 +30,19 @@ export const FeedingDogCard: React.FC<FeedingDogCardProps> = ({
   dog,
   plan,
   inKennel,
+  rationDeleted = false,
   currentQuantity,
   onEditPlan,
   onAdjustQuantity,
 }) => {
   const imageSource = avatarMap[dog.avatarKey];
 
-  const rationDisplay = plan?.rationName
-    ? `${plan.rationName} — ${plan.name || "Plano Ativo"}`
+  const rationDisplay = plan
+    ? rationDeleted
+      ? `Ração excluída — toque no lápis para atualizar (${plan.name || "Plano Ativo"})`
+      : plan.rationName
+      ? `${plan.rationName} — ${plan.name || "Plano Ativo"}`
+      : `${plan.name || "Plano Alimentar Ativo"}`
     : inKennel
     ? "Sem plano alimentar cadastrado"
     : "Fora do canil (Socialização)";
@@ -96,6 +102,7 @@ export const FeedingDogCard: React.FC<FeedingDogCardProps> = ({
                 style={[
                   styles.dogRationText,
                   !plan && styles.dogRationTextEmpty,
+                  rationDeleted && styles.dogRationTextDeleted,
                 ]}
                 numberOfLines={1}
               >
@@ -263,6 +270,11 @@ const styles = StyleSheet.create({
   dogRationTextEmpty: {
     color: "#9CA3AF",
     fontFamily: theme.typography.fontFamily.regular,
+  },
+  dogRationTextDeleted: {
+    color: "#DC2626",
+    fontFamily: theme.typography.fontFamily.bold,
+    fontWeight: theme.typography.fontWeight.bold,
   },
   editButton: {
     width: 34,

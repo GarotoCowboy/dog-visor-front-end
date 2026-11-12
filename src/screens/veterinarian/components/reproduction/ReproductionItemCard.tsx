@@ -18,7 +18,6 @@ interface ReproductionItemCardProps {
   isLatestForDog?: boolean;
   onEdit: (item: IDogReproductionResponse) => void;
   onRequestDelete: (item: IDogReproductionResponse) => void;
-  onEndHeat?: (item: IDogReproductionResponse) => void;
   onRegisterNewCycle?: (item: IDogReproductionResponse) => void;
   formatDate: (dateStr?: string) => string;
 }
@@ -28,7 +27,6 @@ export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
   isLatestForDog = true,
   onEdit,
   onRequestDelete,
-  onEndHeat,
   onRegisterNewCycle,
   formatDate,
 }) => {
@@ -126,22 +124,6 @@ export const ReproductionItemCard: React.FC<ReproductionItemCardProps> = ({
                       {statusInfo.label}
                     </Text>
                   </View>
-
-                  {/* BOTÃO MANUAL PARA ENCERRAR CIO ATIVO */}
-                  {statusInfo.canEndManually && onEndHeat && (
-                    <TouchableOpacity
-                      style={styles.endHeatButton}
-                      onPress={() => onEndHeat(item)}
-                      activeOpacity={0.8}
-                    >
-                      <MaterialDesignIcons
-                        name="check-circle-outline"
-                        size={13}
-                        color="#BE185D"
-                      />
-                      <Text style={styles.endHeatButtonText}>Encerrar Cio</Text>
-                    </TouchableOpacity>
-                  )}
 
                   {/* BOTÃO RÁPIDO QUANDO PREVISÃO ESTÁ VENCIDA */}
                   {statusInfo.isOverdue && onRegisterNewCycle && (
@@ -362,23 +344,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.medium,
     fontWeight: theme.typography.fontWeight.medium,
     fontSize: 11,
-  },
-  endHeatButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#F472B6",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: theme.borderRadius.full,
-  },
-  endHeatButtonText: {
-    fontFamily: theme.typography.fontFamily.bold,
-    fontWeight: theme.typography.fontWeight.bold,
-    fontSize: 10,
-    color: "#BE185D",
   },
   renewCycleButton: {
     flexDirection: "row",

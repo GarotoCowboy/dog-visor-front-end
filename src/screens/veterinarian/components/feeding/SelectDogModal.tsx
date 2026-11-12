@@ -12,7 +12,12 @@ import {
 import MaterialDesignIcons from "@react-native-vector-icons/material-design-icons";
 import { theme } from "../../../../../theme/theme";
 import FormComponent from "../../../../shared/components/FormComponent";
-import { DogRaceLabel, formatDogRace, IDogResponse } from "../../../../types/Dog";
+import {
+  DogRaceLabel,
+  EDOG_STATUS,
+  formatDogRace,
+  IDogResponse,
+} from "../../../../types/Dog";
 import { getDogImageSource } from "../../../../utils/dogAvatar";
 
 interface SelectDogModalProps {
@@ -37,6 +42,14 @@ export const SelectDogModal: React.FC<SelectDogModalProps> = ({
   const [dogSearchText, setDogSearchText] = useState("");
 
   const filteredDogs = dogs.filter((dog) => {
+    if (
+      dog.status === EDOG_STATUS.FALECIDO ||
+      dog.status === EDOG_STATUS.DOADO ||
+      dog.status === EDOG_STATUS.DOACAO ||
+      dog.status === EDOG_STATUS.CEDIDO
+    ) {
+      return false;
+    }
     const text = dogSearchText.toLowerCase();
     const nameMatch = (dog.name || "").toLowerCase().includes(text);
     const breedMatch = dog.race
@@ -58,7 +71,7 @@ export const SelectDogModal: React.FC<SelectDogModalProps> = ({
             <View style={styles.modalHeaderTitleBox}>
               <Text style={styles.modalTitle}>Selecione o Cão</Text>
               <Text style={styles.modalSubtitle}>
-                Apenas cães residentes no canil sem plano ativo
+                Todos os cães ativos (exceto falecidos ou doados)
               </Text>
             </View>
             <TouchableOpacity
@@ -93,7 +106,7 @@ export const SelectDogModal: React.FC<SelectDogModalProps> = ({
                 const dogId = dog.ID;
                 const inKennel = isDogInKennel(dog);
                 const hasPlan = dogHasActivePlan(dogId);
-                const isDisabled = !inKennel || hasPlan;
+                const isDisabled = hasPlan;
 
                 return (
                   <TouchableOpacity

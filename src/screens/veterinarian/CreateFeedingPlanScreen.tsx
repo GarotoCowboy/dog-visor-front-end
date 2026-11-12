@@ -208,31 +208,63 @@ export const CreateFeedingPlanScreen = () => {
     }
   };
 
-  const isDogInKennel = (d: IDogResponse): boolean => {
-    if (d.onKennel !== undefined) return Boolean(d.onKennel);
-    if ((d as any).inKennel !== undefined) return Boolean((d as any).inKennel);
-    if ((d as any).isKennel !== undefined) return Boolean((d as any).isKennel);
+  const isDogEligible = (d: IDogResponse): boolean => {
     return (
-      d.status !== EDOG_STATUS.DOADO && d.status !== EDOG_STATUS.FALECIDO
+      d.status !== EDOG_STATUS.DOADO &&
+      d.status !== EDOG_STATUS.FALECIDO &&
+      d.status !== EDOG_STATUS.DOACAO &&
+      d.status !== EDOG_STATUS.CEDIDO
     );
   };
 
+  const isDogInKennel = (d: IDogResponse): boolean => {
+    if (!isDogEligible(d)) return false;
+    if (d.onKennel !== undefined && d.onKennel !== null) {
+      return Boolean(d.onKennel);
+    }
+    if (d.on_kennel !== undefined && d.on_kennel !== null) {
+      return Boolean(d.on_kennel);
+    }
+    if (d.inKennel !== undefined && d.inKennel !== null) {
+      return Boolean(d.inKennel);
+    }
+    if ((d as any).isKennel !== undefined && (d as any).isKennel !== null) {
+      return Boolean((d as any).isKennel);
+    }
+    return true;
+  };
+
+  const getExistingActivePlan = (
+    dogId?: string,
+  ): IFeedingPlanResponse | undefined => {
+    if (!dogId) return undefined;
+    const cleanId = String(dogId).trim().toLowerCase();
+    return existingPlans.find(
+      (p) => String(p.dogId || "").trim().toLowerCase() === cleanId,
+    );
+  };
+
+  const isPlanRationValid = (plan?: IFeedingPlanResponse): boolean => {
+    if (!plan) return false;
+    if (!plan.rationId) return false;
+    if (rations.length === 0) return true;
+    return rations.some((r) => String(r.id) === String(plan.rationId));
+  };
+
   const dogHasActivePlan = (dogId?: string): boolean => {
-    if (!dogId) return false;
-    return existingPlans.some((p) => {
-      const pDogId = p.dogId;
-      return String(pDogId) === String(dogId);
-    });
+    const plan = getExistingActivePlan(dogId);
+    if (!plan) return false;
+    return isPlanRationValid(plan);
   };
 
   const handleSelectDog = (dog: IDogResponse) => {
     const dogId = dog.ID;
 
-    if (!isDogInKennel(dog)) {
+    if (!isDogEligible(dog)) {
       showAlert(
         "warning",
-        "Cão Fora do Canil",
-        "Os cães para serem alimentados precisam estar no canil. O cão selecionado não reside no canil.",
+        "Cão Indisponível",
+        "Cães com status Doado ou Falecido não podem receber planos alimentares.",
       );
       return;
     }
@@ -275,11 +307,11 @@ export const CreateFeedingPlanScreen = () => {
 
     const dogId = selectedDog.ID;
 
-    if (!isDogInKennel(selectedDog)) {
+    if (!isDogEligible(selectedDog)) {
       showAlert(
         "warning",
-        "Cão Fora do Canil",
-        "Os cães para serem alimentados precisam estar no canil. O cão selecionado não reside no canil.",
+        "Cão Indisponível",
+        "Cães com status Doado ou Falecido não podem receber planos alimentares.",
       );
       return;
     }
@@ -354,16 +386,22 @@ export const CreateFeedingPlanScreen = () => {
       notes: notes.trim() || undefined,
       startDate: formatDate(startDate),
       endDate: hasEndDate ? formatDate(endDate) : undefined,
+      active: true,
     };
 
     try {
       setSubmitting(true);
-      if (editingPlan) {
-        await updateFeedingPlanService(editingPlan.id, payload);
+      const targetPlanToUpdate =
+        editingPlan || getExistingActivePlan(selectedDog.ID);
+
+      if (targetPlanToUpdate) {
+        await updateFeedingPlanService(targetPlanToUpdate.id, payload);
         showAlert(
           "success",
-          "Plano Atualizado",
-          "O plano alimentar foi atualizado com sucesso!",
+          editingPlan ? "Plano Atualizado" : "Plano Criado",
+          editingPlan
+            ? "O plano alimentar foi atualizado com sucesso!"
+            : "O plano alimentar foi cadastrado com sucesso!",
           { onConfirm: () => navigation.goBack() },
         );
       } else {

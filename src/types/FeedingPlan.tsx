@@ -31,6 +31,7 @@ export interface ICreateFeedingPlanRequest {
   notes?: string;
   startDate: string; // YYYY-MM-DD
   endDate?: string; // YYYY-MM-DD
+  active?: boolean;
 }
 
 export interface IUpdateFeedingPlanRequest {

@@ -6,7 +6,6 @@ export const MANUAL_END_MARKER_REGEX = /\[Cio encerrado em (\d{2}\/\d{2}\/\d{4})
 
 export type ReproductionCycleStatus =
   | "IN_HEAT"
-  | "ENDED_MANUALLY"
   | "APPROACHING"
   | "OVERDUE"
   | "NORMAL";
@@ -23,9 +22,7 @@ export interface ReproductionStatusInfo {
   daysSinceStart: number;
   daysRemainingInHeat: number;
   daysUntilNextHeat: number | null;
-  canEndManually: boolean;
   isOverdue: boolean;
-  manualEndDateStr?: string;
 }
 
 export const parseLocalDate = (dateStr?: string): Date | null => {
@@ -64,17 +61,6 @@ export const getExpectedNextHeatDate = (
   return next;
 };
 
-export const appendManualEndObservation = (
-  currentObservations?: string,
-  endDate: Date = new Date(),
-): string => {
-  const cleaned = (currentObservations || "")
-    .replace(MANUAL_END_MARKER_REGEX, "")
-    .trim();
-  const tag = `[Cio encerrado em ${formatLocalDateBR(endDate)}]`;
-  return cleaned ? `${cleaned}\n${tag}` : tag;
-};
-
 export const getReproductionStatusInfo = (
   item: IDogReproductionResponse,
 ): ReproductionStatusInfo => {
@@ -94,37 +80,12 @@ export const getReproductionStatusInfo = (
     ? Math.ceil((nextHeatDate.getTime() - today.getTime()) / msPerDay)
     : null;
 
-  const manualMatch = item.observations?.match(MANUAL_END_MARKER_REGEX);
-  const isManuallyEnded = Boolean(manualMatch);
-  const manualEndDateStr = manualMatch?.[1];
-
   // 1. Está dentro da janela ativa do cio (primeiros 21 dias após a data observada)
   if (
     observedDate &&
     daysSinceStart >= 0 &&
     daysSinceStart <= HEAT_ACTIVE_DURATION_DAYS
   ) {
-    if (isManuallyEnded) {
-      return {
-        status: "ENDED_MANUALLY",
-        label: "Cio Encerrado",
-        detailText: manualEndDateStr
-          ? `Encerrado manualmente em ${manualEndDateStr}`
-          : "Período de cio encerrado manualmente",
-        badgeBgColor: "#ECFDF5",
-        badgeTextColor: "#047857",
-        badgeBorderColor: "#A7F3D0",
-        accentColor: "#10B981",
-        iconName: "check-circle-outline",
-        daysSinceStart,
-        daysRemainingInHeat: 0,
-        daysUntilNextHeat,
-        canEndManually: false,
-        isOverdue: false,
-        manualEndDateStr,
-      };
-    }
-
     const currentDay = daysSinceStart + 1;
     const daysRemainingInHeat = Math.max(
       0,
@@ -146,7 +107,6 @@ export const getReproductionStatusInfo = (
       daysSinceStart,
       daysRemainingInHeat,
       daysUntilNextHeat,
-      canEndManually: true,
       isOverdue: false,
     };
   }
@@ -169,7 +129,6 @@ export const getReproductionStatusInfo = (
       daysSinceStart,
       daysRemainingInHeat: 0,
       daysUntilNextHeat,
-      canEndManually: false,
       isOverdue: true,
     };
   }
@@ -198,7 +157,6 @@ export const getReproductionStatusInfo = (
       daysSinceStart,
       daysRemainingInHeat: 0,
       daysUntilNextHeat,
-      canEndManually: false,
       isOverdue: false,
     };
   }
@@ -219,7 +177,6 @@ export const getReproductionStatusInfo = (
     daysSinceStart,
     daysRemainingInHeat: 0,
     daysUntilNextHeat,
-    canEndManually: false,
     isOverdue: false,
   };
 };

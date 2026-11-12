@@ -26,7 +26,9 @@ import {
   IDogResponse,
 } from "../../types/Dog";
 import { IFeedingPlanResponse } from "../../types/FeedingPlan";
+import { IRationResponse } from "../../types/Ration";
 import {
+  getDogRation,
   listDogsService,
   listFeedingPlansService,
   updateFeedingPlanService,
@@ -40,10 +42,11 @@ export const FeedingManagementScreen = () => {
 
   const [dogs, setDogs] = useState<IDogResponse[]>([]);
   const [plans, setPlans] = useState<IFeedingPlanResponse[]>([]);
+  const [rations, setRations] = useState<IRationResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterMode, setFilterMode] = useState<"kennel" | "all">("kennel");
+  const [filterMode, setFilterMode] = useState<"kennel" | "all">("all");
 
   // Armazena quantidades locais para atualização otimista/debounce
   const [localQuantities, setLocalQuantities] = useState<Record<string, number>>(
@@ -56,20 +59,43 @@ export const FeedingManagementScreen = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [dogsData, plansData] = await Promise.allSettled([
+      const [dogsData, plansData, rationsData] = await Promise.allSettled([
         listDogsService(),
         listFeedingPlansService(),
+        getDogRation(),
       ]);
+
+      const loadedRations =
+        rationsData.status === "fulfilled" && Array.isArray(rationsData.value)
+          ? rationsData.value
+          : [];
+      setRations(loadedRations);
+
+      const rationsMap = new Map<string, IRationResponse>();
+      loadedRations.forEach((r) => {
+        if (r.id !== undefined && r.id !== null) {
+          rationsMap.set(String(r.id), r);
+        }
+      });
 
       if (dogsData.status === "fulfilled" && Array.isArray(dogsData.value)) {
         setDogs(dogsData.value);
       }
       if (plansData.status === "fulfilled" && Array.isArray(plansData.value)) {
-        setPlans(plansData.value);
+        const enrichedPlans = plansData.value.map((p) => {
+          const matchedRation = p.rationId
+            ? rationsMap.get(String(p.rationId))
+            : undefined;
+          return {
+            ...p,
+            rationName: p.rationName || matchedRation?.name || "",
+          };
+        });
+        setPlans(enrichedPlans);
         const qMap: Record<string, number> = {};
-        plansData.value.forEach((p) => {
+        enrichedPlans.forEach((p) => {
           if (p.dogId && p.mealQuantityInGrams) {
-            qMap[p.dogId] = p.mealQuantityInGrams;
+            qMap[String(p.dogId)] = p.mealQuantityInGrams;
           }
         });
         setLocalQuantities(qMap);
@@ -93,7 +119,17 @@ export const FeedingManagementScreen = () => {
     loadData();
   };
 
+  const isDogEligible = (dog: IDogResponse) => {
+    return (
+      dog.status !== EDOG_STATUS.DOADO &&
+      dog.status !== EDOG_STATUS.FALECIDO &&
+      dog.status !== EDOG_STATUS.DOACAO &&
+      dog.status !== EDOG_STATUS.CEDIDO
+    );
+  };
+
   const isDogInKennel = (dog: IDogResponse) => {
+    if (!isDogEligible(dog)) return false;
     if (dog.onKennel !== undefined && dog.onKennel !== null) {
       return Boolean(dog.onKennel);
     }
@@ -103,15 +139,37 @@ export const FeedingManagementScreen = () => {
     if (dog.inKennel !== undefined && dog.inKennel !== null) {
       return Boolean(dog.inKennel);
     }
-    return dog.status === EDOG_STATUS.TREINAMENTO;
+    if ((dog as any).isKennel !== undefined && (dog as any).isKennel !== null) {
+      return Boolean((dog as any).isKennel);
+    }
+    return true;
   };
 
-  const getDogPlan = (dogId: string) => {
-    return plans.find((p) => p.dogId === dogId && p.active !== false);
+  const getDogPlan = (dogId: string, dogName?: string) => {
+    const cleanId = String(dogId || "").trim().toLowerCase();
+    const cleanName = String(dogName || "").trim().toLowerCase();
+    return plans.find((p) => {
+      const pDogId = String(p.dogId || "").trim().toLowerCase();
+      if (cleanId && pDogId && pDogId === cleanId) return true;
+      const pDogName = String(
+        (p as any).dogName || (p as any).dogsName || "",
+      )
+        .trim()
+        .toLowerCase();
+      if (cleanName && pDogName && pDogName === cleanName) return true;
+      return false;
+    });
+  };
+
+  const isPlanRationDeleted = (plan?: IFeedingPlanResponse): boolean => {
+    if (!plan) return false;
+    if (!plan.rationId) return !plan.rationName;
+    if (rations.length === 0) return false;
+    return !rations.some((r) => String(r.id) === String(plan.rationId));
   };
 
   const handleAdjustQuantity = (dog: IDogResponse, delta: number) => {
-    const plan = getDogPlan(dog.ID);
+    const plan = getDogPlan(dog.ID, dog.name);
     if (!plan) {
       showAlert(
         "warning",
@@ -151,11 +209,11 @@ export const FeedingManagementScreen = () => {
   };
 
   const handleEditPlan = (dog: IDogResponse, plan?: IFeedingPlanResponse) => {
-    if (!isDogInKennel(dog)) {
+    if (!isDogEligible(dog)) {
       showAlert(
         "warning",
-        "Cão Fora do Canil",
-        "Os cães para serem alimentados precisam estar no canil. Apenas cães em treinamento/canil podem receber planos alimentares.",
+        "Cão Indisponível",
+        "Cães com status Doado ou Falecido não podem receber planos alimentares.",
       );
       return;
     }
@@ -170,7 +228,48 @@ export const FeedingManagementScreen = () => {
     (navigation as any).navigate(SCREENS.CREATE_FEEDING_PLAN_SCREEN);
   };
 
-  const dogsWithPlan = dogs.filter((dog) => Boolean(getDogPlan(dog.ID)));
+  const eligibleDogs = dogs.filter(isDogEligible);
+  const matchedDogsWithPlan = eligibleDogs.filter((dog) =>
+    Boolean(getDogPlan(dog.ID, dog.name)),
+  );
+
+  // Garante que qualquer plano retornado pelo backend apareça na tela,
+  // mesmo caso o dogId não tenha batido diretamente na lista filtrada
+  const unmatchedPlansDogs: IDogResponse[] = plans
+    .filter(
+      (p) =>
+        p.dogId &&
+        !matchedDogsWithPlan.some(
+          (d) =>
+            String(d.ID || "").trim().toLowerCase() ===
+            String(p.dogId || "").trim().toLowerCase(),
+        ),
+    )
+    .map((p) => {
+      const foundInAll = dogs.find(
+        (d) =>
+          String(d.ID || "").trim().toLowerCase() ===
+          String(p.dogId || "").trim().toLowerCase(),
+      );
+      if (foundInAll) return foundInAll;
+      return {
+        ID: String(p.dogId),
+        name:
+          (p as any).dogName ||
+          (p as any).dogsName ||
+          `Cão (${String(p.dogId).slice(0, 6)})`,
+        race: (p as any).dogsBreed || (p as any).dogRace || null,
+        status: EDOG_STATUS.TREINAMENTO,
+        sex: "M",
+        avatarKey: "",
+        dateOfBirth: "",
+        onKennel: true,
+        createdAt: p.createdAt || "",
+        updatedAt: p.updatedAt || "",
+      };
+    });
+
+  const dogsWithPlan = [...matchedDogsWithPlan, ...unmatchedPlansDogs];
   const kennelDogsWithPlan = dogsWithPlan.filter((d) => isDogInKennel(d));
 
   const displayedDogs = (
@@ -179,7 +278,7 @@ export const FeedingManagementScreen = () => {
     const term = search.toLowerCase().trim();
     if (!term) return true;
     const raceName = dog.race ? DogRaceLabel[dog.race]?.toLowerCase() : "";
-    const plan = getDogPlan(dog.ID);
+    const plan = getDogPlan(dog.ID, dog.name);
     const rationName = plan?.rationName?.toLowerCase() || "";
     return (
       dog.name.toLowerCase().includes(term) ||
@@ -237,20 +336,24 @@ export const FeedingManagementScreen = () => {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <FeedingDogCard
-              dog={item}
-              plan={getDogPlan(item.ID)}
-              inKennel={isDogInKennel(item)}
-              currentQuantity={
-                localQuantities[item.ID] !== undefined
-                  ? localQuantities[item.ID]
-                  : getDogPlan(item.ID)?.mealQuantityInGrams || 150
-              }
-              onEditPlan={() => handleEditPlan(item, getDogPlan(item.ID))}
-              onAdjustQuantity={(delta) => handleAdjustQuantity(item, delta)}
-            />
-          )}
+          renderItem={({ item }) => {
+            const dogPlan = getDogPlan(item.ID, item.name);
+            return (
+              <FeedingDogCard
+                dog={item}
+                plan={dogPlan}
+                inKennel={isDogInKennel(item)}
+                rationDeleted={isPlanRationDeleted(dogPlan)}
+                currentQuantity={
+                  localQuantities[item.ID] !== undefined
+                    ? localQuantities[item.ID]
+                    : dogPlan?.mealQuantityInGrams || 150
+                }
+                onEditPlan={() => handleEditPlan(item, dogPlan)}
+                onAdjustQuantity={(delta) => handleAdjustQuantity(item, delta)}
+              />
+            );
+          }}
         />
       )}
 

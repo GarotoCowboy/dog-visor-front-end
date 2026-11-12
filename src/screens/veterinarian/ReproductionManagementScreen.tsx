@@ -26,7 +26,6 @@ import {
   IUpdateDogReproductionRequest,
 } from "../../types/DogHealth";
 import {
-  appendManualEndObservation,
   getExpectedNextHeatDate,
   parseLocalDate,
 } from "../../utils/reproductionStatus";
@@ -203,39 +202,6 @@ export const ReproductionManagementScreen = () => {
     }
   };
 
-  const handleRequestEndHeat = (item: IDogReproductionResponse) => {
-    showConfirm(
-      "Encerrar Período de Cio",
-      `Deseja marcar o período de cio atual da cadela "${item.dogsName}" como encerrado? A previsão do próximo ciclo (${formatDate(item.expectedNextHeatDate)}) será mantida.`,
-      async () => {
-        try {
-          setLoading(true);
-          await updateDogReproductionService(item.id, {
-            date: item.date,
-            expectedNextHeatDate: item.expectedNextHeatDate,
-            cycleIntervalInMonths: item.cycleIntervalInMonths,
-            observations: appendManualEndObservation(item.observations),
-          });
-          await loadData();
-          showAlert(
-            "success",
-            "Cio Encerrado!",
-            `O período de cio de "${item.dogsName}" foi marcado como encerrado.`,
-          );
-        } catch (err: any) {
-          console.log("Erro ao encerrar cio:", err);
-          const message =
-            err?.response?.data?.message ||
-            "Não foi possível encerrar o período de cio.";
-          showAlert("error", "Erro ao Encerrar", message);
-        } finally {
-          setLoading(false);
-        }
-      },
-      { confirmText: "Encerrar Cio", cancelText: "Cancelar" },
-    );
-  };
-
   const handleRegisterNewCycle = (item: IDogReproductionResponse) => {
     setEditingItem(item);
   };
@@ -342,7 +308,6 @@ export const ReproductionManagementScreen = () => {
               isLatestForDog={latestRecordIds.has(item.id)}
               onEdit={(rec) => setEditingItem(rec)}
               onRequestDelete={handleRequestDelete}
-              onEndHeat={handleRequestEndHeat}
               onRegisterNewCycle={handleRegisterNewCycle}
               formatDate={formatDate}
             />

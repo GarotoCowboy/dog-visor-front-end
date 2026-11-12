@@ -20,6 +20,7 @@ import {
   IDogReproductionResponse,
   IUpdateDogReproductionRequest,
 } from "../../../../types/DogHealth";
+import { MANUAL_END_MARKER_REGEX } from "../../../../utils/reproductionStatus";
 
 interface EditReproductionModalProps {
   visible: boolean;
@@ -64,7 +65,9 @@ export const EditReproductionModal: React.FC<EditReproductionModalProps> = ({
       setCycleInterval(
         item.cycleIntervalInMonths ? String(item.cycleIntervalInMonths) : "6",
       );
-      setObservations(item.observations || "");
+      setObservations(
+        (item.observations || "").replace(MANUAL_END_MARKER_REGEX, "").trim(),
+      );
     }
   }, [visible, item]);
 
